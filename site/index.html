@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#071018">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Bold test lab — parcours d’essai</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #e8eef2;
+      --muted: #9aa8b2;
+      --lime: #c6f135;
+      --bg: #071018;
+      --line: rgba(232, 238, 242, 0.16);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font: 16px/1.4 "Avenir Next", "Segoe UI", sans-serif;
+      padding:
+        env(safe-area-inset-top)
+        env(safe-area-inset-right)
+        env(safe-area-inset-bottom)
+        env(safe-area-inset-left);
+    }
+    header, footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex: none;
+      padding: 10px 16px;
+    }
+    header { border-bottom: 1px solid var(--line); }
+    h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 650;
+    }
+    h1 span { color: var(--lime); font-weight: 700; }
+    p { margin: 0; color: var(--muted); }
+    .stage {
+      flex: 1;
+      min-height: 0;
+      container-type: size;
+      display: grid;
+      place-items: center;
+      padding: 8px 12px;
+    }
+    .phone {
+      width: min(420px, 100%);
+      max-height: 100%;
+      overflow: auto;
+      border-radius: 28px;
+      background: #07111c;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+      -webkit-overflow-scrolling: touch;
+    }
+    @supports (width: 1cqw) {
+      .phone { width: min(100cqw, calc(100cqh * 853 / 1844), 420px); }
+    }
+    .sheet { position: relative; }
+    img { display: block; width: 100%; height: auto; }
+    .zone {
+      position: absolute;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      border-radius: 14px;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .zone:hover,
+    .zone:focus-visible,
+    .zone:active,
+    body.show-zones .zone {
+      background: rgba(198, 241, 53, 0.18);
+      outline: 1px solid rgba(198, 241, 53, 0.85);
+    }
+    footer {
+      position: sticky;
+      bottom: 0;
+      background: rgba(7, 16, 24, 0.94);
+      border-top: 1px solid var(--line);
+    }
+    .nav { display: flex; flex-wrap: wrap; gap: 8px; }
+    button.ctrl, select {
+      background: transparent;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font: inherit;
+      cursor: pointer;
+    }
+    button.ctrl:hover, select:hover { border-color: var(--lime); }
+    #status { min-height: 0; font-size: 14px; }
+    #status:empty { display: none; }
+    @media (max-width: 700px) {
+      .lede { display: none; }
+      header, footer { padding: 8px 12px; }
+      .nav { flex: 1; min-width: 0; }
+      select { flex: 1; min-width: 0; max-width: 46vw; }
+      button.ctrl { padding: 10px 12px; }
+      .phone { border-radius: 18px; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Bold <span>test lab</span></h1>
+      <p id="title">Accueil</p>
+    </div>
+    <p class="lede">Vos maquettes, reliées. Aucun compte, aucun paiement, aucun point.</p>
+  </header>
+  <main class="stage">
+    <div class="phone" id="phone">
+      <div class="sheet" id="sheet"></div>
+    </div>
+  </main>
+  <footer>
+    <p id="status" role="status"></p>
+    <div class="nav">
+      <button class="ctrl" type="button" id="prev">Précédent</button>
+      <select id="jump" aria-label="Aller à un écran"></select>
+      <button class="ctrl" type="button" id="next">Suivant</button>
+      <button class="ctrl" type="button" id="zones">Repères</button>
+    </div>
+  </footer>
+  <script>
+    const screens = [
+      ["01_Accueil_campagne_et_projets_testeurs.png", "Accueil", [
+        [43, 7, 8, 84, 2, "Tester cette appli"],
+        [84.2, 4, 8, 84, 9, "Ouvrir en plein écran"],
+        [91, 9, 0, 25, 1, "Découvrir"],
+        [91, 9, 25, 25, 9, "Testeurs"],
+        [91, 9, 50, 25, 10, "Classement"],
+        [91, 9, 75, 25, 11, "Profil"]
+      ]],
+      ["02_Page_campagne_liens_reseaux_consignes.png", "Campagne", [
+        [0, 8, 0, 28, 1, "Retour"],
+        [91, 6, 6, 88, 3, "Donner mon avis"]
+      ]],
+      ["03_Rediger_avis_texte_capture_video.png", "Rédiger l’avis", [
+        [0, 8, 0, 46, 2, "Retour à la campagne"],
+        [88.5, 6, 4, 92, 4, "Publier mon avis"]
+      ]],
+      ["04_Questionnaire_bugs_batterie_design_parcours.png", "Compte rendu", [
+        [6, 5, 0, 24, 3, "Retour"],
+        [94.5, 5, 4, 92, 5, "Continuer"]
+      ]],
+      ["05_Verification_avant_publication.png", "Vérification", [
+        [0, 7, 0, 22, 4, "Retour"],
+        [88.2, 2.6, 4, 92, 6, "Compléter et publier"],
+        [90.8, 2.6, 4, 92, 11, "Enregistrer le brouillon"]
+      ]],
+      ["06_Avis_publie_likes_partage.png", "Avis publié", [
+        [0, 8, 0, 22, 2, "Retour"],
+        [64, 5, 6, 42, "Le like ne modifie pas le classement dans ce parcours.", "J’aime"],
+        [64, 5, 52, 42, "Le partage n’est pas branché.", "Partager"],
+        [82.5, 5, 58, 36, "Les maquettes ne contiennent pas d’écran de connexion.", "Se connecter"]
+      ]],
+      ["07_Signalement_et_question_entrepreneur.png", "Signalement", [
+        [0, 7, 0, 24, 16, "Retour"],
+        [78, 6, 6, 88, 8, "Envoyer la question"],
+        [88, 8, 4, 92, 12, "Lancer un test ciblé"]
+      ]],
+      ["08_Reponse_facultative_du_testeur.png", "Question au testeur", [
+        [0, 8, 0, 28, 7, "Retour"],
+        [61, 7, 6, 88, 6, "Répondre"],
+        [69, 6, 6, 88, 6, "Passer pour le moment"],
+        [80, 6, 4, 92, 6, "Relire mon avis"]
+      ]],
+      ["09_Galerie_plein_ecran_applis_testeurs.png", "Applis des testeurs", [
+        [0, 8, 72, 28, 1, "Fermer"],
+        [31.5, 6, 48, 48, "Ces projets n’ont pas de page propre dans les maquettes.", "Découvrir Plantae"],
+        [51, 6, 48, 48, "Ces projets n’ont pas de page propre dans les maquettes.", "Découvrir MindFlow"],
+        [70.5, 6, 48, 48, "Ces projets n’ont pas de page propre dans les maquettes.", "Découvrir GoodSpot"],
+        [89.5, 6, 48, 48, "Ces projets n’ont pas de page propre dans les maquettes.", "Découvrir Alba"]
+      ]],
+      ["10_Classement_des_testeurs.png", "Classement", [
+        [77.5, 6, 6, 88, 2, "Tester un projet"],
+        [91, 9, 0, 25, 1, "Découvrir"],
+        [91, 9, 25, 25, 9, "Communauté"],
+        [91, 9, 50, 25, 10, "Classement"],
+        [91, 9, 75, 25, 11, "Profil"]
+      ]],
+      ["11_Profil_testeur_et_mon_projet.png", "Profil", [
+        [69, 7, 6, 88, "Les maquettes ne contiennent pas le formulaire du projet.", "Ajouter ou modifier mon projet"],
+        [78.5, 8, 4, 92, 12, "Faire tester mon service"],
+        [91, 9, 0, 25, 1, "Découvrir"],
+        [91, 9, 25, 25, 9, "Communauté"],
+        [91, 9, 50, 25, 10, "Classement"],
+        [91, 9, 75, 25, 11, "Profil"]
+      ]],
+      ["12_Choisir_offre_et_creneau.png", "Offre et créneau", [
+        [0, 7, 0, 22, 11, "Retour"],
+        [92.5, 6, 42, 56, 13, "Continuer vers le paiement"]
+      ]],
+      ["13_Recapitulatif_avant_Stripe.png", "Récapitulatif", [
+        [0, 8, 0, 28, 12, "Retour"],
+        [26, 5, 58, 38, 12, "Modifier le créneau"],
+        [89, 6.5, 4, 92, 14, "Payer avec Stripe"]
+      ]],
+      ["14_Confirmation_du_paiement.png", "Paiement confirmé", [
+        [83.5, 7, 5, 90, 15, "Voir ma campagne"],
+        [90.5, 5, 18, 64, "Les maquettes ne contiennent pas le reçu.", "Voir mon reçu"]
+      ]],
+      ["15_Mes_resultats_de_test.png", "Résultats", [
+        [53, 6, 6, 88, 16, "Ouvrir le rapport"],
+        [64, 5, 4, 42, 6, "Lire tous les avis"],
+        [64, 5, 50, 46, "Les maquettes ne contiennent pas le fichier PDF.", "Télécharger le rapport PDF"],
+        [84, 6, 6, 88, 16, "Suivre les retours"],
+        [91, 9, 0, 25, 1, "Accueil"],
+        [91, 9, 25, 25, 12, "Campagnes"],
+        [91, 9, 50, 25, 15, "Résultats"],
+        [91, 9, 75, 25, 11, "Profil"]
+      ]],
+      ["16_Rapport_detaille_de_campagne.png", "Rapport", [
+        [48, 7, 55, 42, 7, "Voir le premier détail"],
+        [55.5, 7, 55, 42, 7, "Voir le deuxième détail"],
+        [62.5, 7, 55, 42, 7, "Voir le troisième détail"],
+        [92.5, 6, 2, 32, 6, "Lire les avis"],
+        [92.5, 6, 34, 32, "Les maquettes ne contiennent pas le fichier PDF.", "Rapport PDF"],
+        [92.5, 6, 66, 32, "Les maquettes ne contiennent pas le fichier CSV.", "Exporter CSV"]
+      ]]
+    ];
+
+    const sheet = document.querySelector("#sheet");
+    const title = document.querySelector("#title");
+    const status = document.querySelector("#status");
+    const phone = document.querySelector("#phone");
+    const jump = document.querySelector("#jump");
+    let index = 0;
+
+    screens.forEach((screen, i) => {
+      const option = document.createElement("option");
+      option.value = String(i);
+      option.textContent = String(i + 1).padStart(2, "0") + "  " + screen[1];
+      jump.append(option);
+      const preload = new Image();
+      preload.src = "ecrans/" + screen[0];
+    });
+
+    function show(next, message) {
+      index = (next + screens.length) % screens.length;
+      const [file, name, zones] = screens[index];
+      title.textContent = "Écran " + (index + 1) + " sur 16 · " + name;
+      jump.value = String(index);
+      status.textContent = message || (index === 13 ? "Paiement simulé. La page Stripe n’est pas ouverte." : "");
+      sheet.replaceChildren();
+      const image = document.createElement("img");
+      image.alt = name;
+      image.src = "ecrans/" + file;
+      sheet.append(image);
+      zones.forEach((zone) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "zone";
+        button.style.top = zone[0] + "%";
+        button.style.height = zone[1] + "%";
+        button.style.left = zone[2] + "%";
+        button.style.width = zone[3] + "%";
+        button.setAttribute("aria-label", zone[5]);
+        button.addEventListener("click", () => {
+          if (typeof zone[4] === "number") show(zone[4] - 1);
+          else show(index, zone[4]);
+        });
+        sheet.append(button);
+      });
+      phone.scrollTop = 0;
+    }
+
+    document.querySelector("#prev").addEventListener("click", () => show(index - 1));
+    document.querySelector("#next").addEventListener("click", () => show(index + 1));
+    jump.addEventListener("change", () => show(Number(jump.value)));
+    document.querySelector("#zones").addEventListener("click", () => {
+      document.body.classList.toggle("show-zones");
+    });
+    show(0);
+  </script>
+</body>
+</html>
