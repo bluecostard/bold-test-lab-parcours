@@ -1,0 +1,10 @@
+---
+description: Toute modification de mise en page passe par l’agent UX
+alwaysApply: true
+---
+
+# Mise en page : agent UX obligatoire
+
+Dès qu’un changement touche un écran, une maquette, un overlay, un formulaire, un menu, une taille de texte, un logo, une capture ou un picto, délègue le travail à l’agent `ux-design` (`.cursor/agents/ux-design.md`) avant d’écrire le code.
+
+Ne dessine pas la mise en page toi-même. L’agent UX aligne sur les maquettes `app/public/ecrans/`, vérifie le rendu, puis implémente.

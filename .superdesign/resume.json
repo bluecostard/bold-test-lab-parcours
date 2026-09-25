@@ -1,0 +1,20 @@
+{
+  "targets": {
+    "settings": {
+      "projectId": "c7d43ef0-27e9-4a6f-959b-7cbc02e93713",
+      "activeDraftId": "51a37436-5956-4272-ac0c-6b043b32553e",
+      "baselineDraftId": "51a37436-5956-4272-ac0c-6b043b32553e",
+      "title": "Réglages Gemelo",
+      "device": "mobile",
+      "kind": "new-target",
+      "canvas": "https://superdesign.dev/teams/e5b301bf-9152-45b6-9d34-841197831819/projects/c7d43ef0-27e9-4a6f-959b-7cbc02e93713",
+      "preview": "https://p.superdesign.dev/draft/51a37436-5956-4272-ac0c-6b043b32553e",
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        ".superdesign/init/theme.md",
+        "app/src/v2/primitives.jsx",
+        "app/src/screens/Settings.jsx"
+      ]
+    }
+  }
+}
