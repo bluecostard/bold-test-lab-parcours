@@ -1,0 +1,98 @@
+name: iOS TestFlight
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: true
+
+jobs:
+  testflight:
+    name: Compiler et envoyer sur TestFlight
+    runs-on: macos-15
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APPLE_TEAM_ID: 2K393S427L
+    steps:
+      - name: Vérifier les secrets
+        run: |
+          test -n "$APP_STORE_CONNECT_KEY_ID" || { echo "Secret APP_STORE_CONNECT_KEY_ID manquant"; exit 1; }
+          test -n "$APP_STORE_CONNECT_ISSUER_ID" || { echo "Secret APP_STORE_CONNECT_ISSUER_ID manquant"; exit 1; }
+          test -n "${{ secrets.APP_STORE_CONNECT_API_KEY }}" || { echo "Secret APP_STORE_CONNECT_API_KEY manquant"; exit 1; }
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Installer et compiler le site
+        working-directory: app
+        run: |
+          npm ci
+          npm run build
+          npx cap sync ios
+
+      - name: Clé App Store Connect
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          KEY="$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          printf '%s\n' "$APP_STORE_CONNECT_API_KEY" > "$KEY"
+          chmod 600 "$KEY"
+
+      - name: Numéro de build
+        working-directory: app/ios/App
+        run: agvtool new-version -all "${{ github.run_number }}"
+
+      - name: Archiver
+        working-directory: app/ios/App
+        run: |
+          set -euo pipefail
+          KEY="$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          xcodebuild archive \
+            -project App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/Gemelo.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY" \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}"
+
+      - name: Exporter l’IPA
+        working-directory: app/ios
+        run: |
+          set -euo pipefail
+          KEY="$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Gemelo.xcarchive" \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath "$RUNNER_TEMP/ipa" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY" \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
+
+      - name: Envoyer sur TestFlight
+        run: |
+          set -euo pipefail
+          IPA="$(find "$RUNNER_TEMP/ipa" -name '*.ipa' | head -n 1)"
+          test -n "$IPA" || { echo "Aucun IPA"; ls -la "$RUNNER_TEMP/ipa" || true; exit 1; }
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA" \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
