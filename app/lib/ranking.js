@@ -1,0 +1,99 @@
+import { listAllReviews, listLikeEvents } from "./reviewStore.js";
+
+export const RANK_WINDOW_DAYS = 30;
+const WINDOW_MS = RANK_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+
+const seedRanking = [
+  { name: "Léa", tested: 48, points: 420, phrase: "Toujours à l’affût de nouveaux lieux", photo: "/visuels/lea.jpg", projectId: "doctolib" },
+  { name: "Thomas", tested: 41, points: 395, phrase: "Nature, cafés et bonnes adresses", photo: "/visuels/thomas.jpg", projectId: "du-rose-au-noir" },
+  { name: "Camille", tested: 34, points: 368, phrase: "Explorer pour mieux vivre", photo: "/visuels/camille.jpg", projectId: "comptoir-du-oui" },
+  { name: "Alex", tested: 29, points: 340, phrase: "Des idées pour un quotidien meilleur", photo: "/visuels/alex.jpg", projectId: "sncf-connect" },
+  { name: "Sophie", tested: 25, points: 312, phrase: "Bien-être et découverte", photo: "/visuels/sophie.jpg", projectId: "blablacar" },
+  { name: "Julien", tested: 22, points: 290, phrase: "Toujours curieux", photo: "/visuels/julien.jpg", projectId: "vinted" },
+  { name: "Manon", tested: 18, points: 276, phrase: "Cafés, culture, petits plaisirs", photo: "/visuels/manon.jpg", projectId: "leboncoin" },
+  { name: "Nicolas", tested: 15, points: 258, phrase: "Tester pour partager", photo: "/visuels/nicolas.jpg", projectId: "lydia" },
+  { name: "Élise", tested: 12, points: 241, phrase: "Naturellement curieuse", photo: "/visuels/elise.jpg", projectId: "deezer" },
+  { name: "Maxime", tested: 9, points: 228, phrase: "Des avis utiles avant tout", photo: "/visuels/maxime.jpg", projectId: "signal" },
+];
+
+function inWindow(iso, now) {
+  const at = Date.parse(iso || "");
+  return Number.isFinite(at) && now - at <= WINDOW_MS && now - at >= 0;
+}
+
+function publicRow(row, place) {
+  return {
+    id: row.id,
+    authorId: row.authorId || "",
+    name: row.name,
+    photo: row.photo || "",
+    phrase: row.phrase || "Avis utiles",
+    points: row.points,
+    tested: row.tested,
+    projectId: row.projectId || "",
+    live: Boolean(row.live),
+    place,
+  };
+}
+
+export async function buildRanking(userId = "") {
+  const now = Date.now();
+  const reviews = await listAllReviews();
+  const liveByAuthor = new Map();
+
+  for (const review of reviews) {
+    const key = review.authorId || review.author;
+    if (!key) continue;
+    const events = await listLikeEvents(review.id);
+    const recentLikes = events.filter((event) => {
+      if (review.authorId && event.userId === review.authorId) return false;
+      return inWindow(event.at, now);
+    });
+    const row = liveByAuthor.get(key) || {
+      id: key,
+      authorId: review.authorId || "",
+      name: review.author || "Testeur",
+      photo: review.photo || "",
+      phrase: "Avis utiles",
+      points: 0,
+      tested: 0,
+      projectId: "",
+      live: true,
+    };
+    if (inWindow(review.publishedAt, now)) row.tested += 1;
+    row.points += recentLikes.length;
+    if (!row.photo && review.photo) row.photo = review.photo;
+    liveByAuthor.set(key, row);
+  }
+
+  const live = [...liveByAuthor.values()];
+  const liveNames = new Set(live.map((row) => row.name));
+  const seed = seedRanking
+    .filter((row) => !liveNames.has(row.name))
+    .map((row) => ({
+      id: `seed-${row.name}`,
+      authorId: "",
+      name: row.name,
+      photo: row.photo,
+      phrase: row.phrase,
+      points: row.points,
+      tested: row.tested,
+      projectId: row.projectId,
+      live: false,
+    }));
+
+  const combined = [...live, ...seed].sort((a, b) => b.points - a.points || b.tested - a.tested || a.name.localeCompare(b.name, "fr"));
+  const ranking = combined.slice(0, 10).map((row, index) => publicRow(row, index + 1));
+
+  let me = null;
+  if (userId) {
+    const index = combined.findIndex((row) => row.authorId === userId);
+    const row = index >= 0 ? combined[index] : { authorId: userId, name: "Vous", photo: "", phrase: "", points: 0, tested: 0, live: true };
+    me = {
+      ...publicRow(row, index >= 0 ? index + 1 : 0),
+      inTop10: index >= 0 && index < 10,
+    };
+  }
+
+  return { ranking, me, windowDays: RANK_WINDOW_DAYS };
+}

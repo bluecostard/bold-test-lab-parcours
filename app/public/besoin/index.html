@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b2035">
+  <meta name="description" content="Faites tester votre application ou votre site par la communauté Gemelo. Choisissez votre créneau et demandez une campagne pilote.">
+  <title>Gemelo — Faites tester votre projet</title>
+  <link rel="stylesheet" href="/besoin/style.css">
+</head>
+<body>
+  <header class="top wrap">
+    <img src="/besoin/logo.png" alt="Gemelo" class="logo">
+    <span class="topNote">Les yeux rivés sur vous</span>
+  </header>
+  <main class="wrap">
+    <section class="hero" aria-labelledby="headline">
+      <span class="eyebrow"><span class="dot"></span> Pour les créateurs d’applications et de sites</span>
+      <h1 id="headline">Vous avez créé, ou vous êtes actuellement en train de créer</h1>
+      <p>1. Votre application<br>2. Un site web<br>3. Un service sur internet</p>
+      <p>Obtenez rapidement un retour de testeurs. Voyez ce que vos futurs utilisateurs verront vraiment. Obtenez des retours clairs et précis.</p>
+      <p>Faites découvrir votre projet à la communauté Gemelo à la date et au créneau de votre choix. Demandez des retours précis sur les bugs, le design, la logique du parcours et bien d’autres points.</p>
+      <button class="primary" id="seePricing" type="button">Voir les créneaux et les tarifs <span aria-hidden="true">→</span></button>
+      <p class="micro">Demande sans paiement. Les premières campagnes sont en préparation.</p>
+    </section>
+    <section id="offers" class="offers" aria-labelledby="offersTitle">
+      <div class="sectionHeader"><span class="eyebrow">Choisissez quand être visible</span><h2 id="offersTitle">7 créneaux. Des tarifs accessibles à toutes les bourses et connus à l’avance.</h2><p>Votre projet sera présenté à la communauté pendant le créneau choisi. Le nombre de tests et d’avis dépendra de la participation des membres.</p></div>
+      <div class="offersGrid" id="offerGrid"></div>
+    </section>
+    <section id="request" class="request" aria-labelledby="requestTitle" hidden>
+      <div class="requestIntro"><span class="eyebrow">Votre demande</span><h2 id="requestTitle">Demander ce créneau</h2><p id="pickedOffer"></p><p>Présentez-nous votre projet. Aucun montant ne sera prélevé : nous vous recontacterons avant toute réservation.</p></div>
+      <form id="leadForm">
+        <label>Nom du projet <input name="project" autocomplete="organization" required maxlength="100" placeholder="Ex. Mon application"></label>
+        <label>Lien du site, de l’application ou de sa fiche Store <input name="url" type="url" inputmode="url" required maxlength="500" placeholder="https://..."></label>
+        <label>Adresse e-mail professionnelle <input name="email" type="email" autocomplete="email" required maxlength="254" placeholder="vous@entreprise.fr"></label>
+        <label class="hiddenTrap" aria-hidden="true">Site web secondaire <input name="website" tabindex="-1" autocomplete="off"></label>
+        <label class="consent"><input name="consent" type="checkbox" required> J’accepte d’être contacté au sujet de cette demande. Mes informations servent uniquement à organiser les premières campagnes.</label>
+        <button class="primary" id="submitLead" type="submit">Envoyer ma demande <span aria-hidden="true">→</span></button>
+        <p class="formMessage" id="formMessage" role="alert" aria-live="polite"></p>
+      </form>
+    </section>
+    <section id="thanks" class="thanks" hidden tabindex="-1"><span class="success">✓</span><h2>Demande reçue</h2><p>Merci. Les premières campagnes Gemelo sont en préparation. Nous vous contacterons au sujet de votre projet et du créneau choisi avant toute réservation ou facturation.</p></section>
+  </main>
+  <footer class="wrap footer">Gemelo · Les yeux rivés sur vous</footer>
+  <script type="module" src="/besoin/main.js"></script>
+</body>
+</html>

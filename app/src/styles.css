@@ -6,6 +6,7 @@
 }
 
 * { box-sizing: border-box; }
+html, body { overscroll-behavior-x: none; }
 body { margin: 0; background: #050d18; color: var(--ink); }
 button, select { font: inherit; color: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }

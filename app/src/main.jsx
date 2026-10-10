@@ -1,22 +1,13 @@
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import { ClerkProvider } from "@clerk/react";
-import { frFR } from "@clerk/localizations";
-import { App } from "./App.jsx";
-import { AppV2 } from "./v2/AppV2.jsx";
-import "./styles.css";
+import { bindDesktopStoreButtons, isOfficialDesktop } from "./desktopGate.js";
 
-const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-const RootApp = new URLSearchParams(window.location.search).get("v1") === "1" ? App : AppV2;
-
-createRoot(document.getElementById("root")).render(
-  <StrictMode>
-    {clerkKey ? (
-      <ClerkProvider publishableKey={clerkKey} localization={frFR} afterSignOutUrl="/">
-        <RootApp />
-      </ClerkProvider>
-    ) : (
-      <RootApp />
-    )}
-  </StrictMode>
-);
+if (isOfficialDesktop()) {
+  document.title = "Gemelo — Les yeux rivés sur vous";
+  document.getElementById("desktop-css")?.setAttribute("media", "all");
+  document.getElementById("desktop-site")?.removeAttribute("hidden");
+  document.getElementById("root")?.setAttribute("hidden", "");
+  bindDesktopStoreButtons();
+} else {
+  document.getElementById("desktop-site")?.remove();
+  document.getElementById("desktop-css")?.remove();
+  import("./boot.jsx");
+}

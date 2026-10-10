@@ -1,15 +1,40 @@
 import { bottomNavigation } from "./data.js";
 
 export function PageShell({ children, withNav = false, pageRef }) {
-  return <div ref={pageRef} className={`v2-page${withNav ? " v2-page--nav" : ""}`}>{children}</div>;
+  return (
+    <div ref={pageRef} className={`v2-page${withNav ? " v2-page--nav" : ""}`}>
+      <a className="v2-skip" href="#contenu">Aller au contenu</a>
+      <div id="contenu">{children}</div>
+    </div>
+  );
 }
 
-export function Header({ action }) {
+export function Header({ action, onHome, mark = "wordmark" }) {
+  const logo = (
+    <img
+      src={mark === "app" ? "/icon-app.png" : "/logo-gemelo.png"}
+      alt="Gemelo"
+      className={mark === "app" ? "v2-app-icon" : undefined}
+    />
+  );
   return (
     <header className={action ? "v2-header v2-header--actions" : "v2-header"}>
-      <img src="/logo-gemelo.png" alt="Gemelo" />
+      {onHome ? (
+        <button type="button" className="v2-header-home" aria-label="Retour à l’accueil" onClick={onHome}>
+          {logo}
+        </button>
+      ) : logo}
       {action}
     </header>
+  );
+}
+
+export function FlowHeader({ navigate, openDrawer }) {
+  return (
+    <Header
+      onHome={() => navigate("discover")}
+      action={openDrawer ? <GearButton onClick={openDrawer} /> : null}
+    />
   );
 }
 
@@ -42,11 +67,11 @@ export function BottomNav({ active = "discover", onNavigate }) {
           key={item.id}
           type="button"
           className={active === item.id ? "is-active" : ""}
+          aria-label={item.label}
           aria-current={active === item.id ? "page" : undefined}
           onClick={() => onNavigate(item.id)}
         >
           <NavIcon name={item.icon} />
-          {item.label}
         </button>
       ))}
     </nav>
@@ -68,18 +93,18 @@ export function EntrepreneurNav({ active = "results", onNavigate }) {
           key={item.id}
           type="button"
           className={active === item.id ? "is-active" : ""}
+          aria-label={item.label}
           aria-current={active === item.id ? "page" : undefined}
           onClick={() => onNavigate(item.id)}
         >
           <NavIcon name={item.icon} />
-          {item.label}
         </button>
       ))}
     </nav>
   );
 }
 
-function NavIcon({ name }) {
+export function NavIcon({ name }) {
   const paths = {
     compass: <><circle cx="12" cy="12" r="9" /><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8 4.8-2.2Z" /></>,
     people: <><circle cx="9" cy="9" r="3" /><circle cx="16.5" cy="10" r="2.5" /><path d="M3.5 19c.7-3.2 2.5-4.8 5.5-4.8s4.8 1.6 5.5 4.8M14 15c2.9-.5 5 .8 6 4" /></>,
@@ -135,10 +160,21 @@ export function Tags({ items }) {
   return <ul className="v2-tags" aria-label="Catégories">{items.map((item) => <li key={item}>{item}</li>)}</ul>;
 }
 
-export function Field({ label, error, children }) {
+export function CampaignInstructions({ campaign }) {
+  if (!campaign.instructions?.length) return null;
+  return (
+    <Card>
+      <SectionTitle icon="▤" title="Consignes de l’entrepreneur" description={`Suivez ces étapes pour tester ${campaign.name}.`} />
+      <ol className="v2-instructions">{campaign.instructions.map((item) => <li key={item}>{item}</li>)}</ol>
+    </Card>
+  );
+}
+
+export function Field({ label, hint, error, children }) {
   return (
     <label className="v2-field">
       <span>{label}</span>
+      {hint ? <em className="v2-field-hint">{hint}</em> : null}
       {children}
       {error ? <small role="alert">{error}</small> : null}
     </label>

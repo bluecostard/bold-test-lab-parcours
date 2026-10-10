@@ -1,3 +1,46 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "redirects": [
+    { "source": "/besoin", "destination": "/besoin/", "permanent": true },
+    { "source": "/confidentialite", "destination": "/confidentialite/", "permanent": true },
+    { "source": "/cgu", "destination": "/cgu/", "permanent": true },
+    { "source": "/cgv", "destination": "/cgv/", "permanent": true },
+    { "source": "/contact", "destination": "/contact/", "permanent": true },
+    { "source": "/mentions", "destination": "/mentions/", "permanent": true },
+    { "source": "/stores", "destination": "/stores/", "permanent": true },
+    { "source": "/supprimer", "destination": "/supprimer/", "permanent": true },
+    { "source": "/regles", "destination": "/regles/", "permanent": true },
+    { "source": "/introuvable", "destination": "/introuvable/", "permanent": true }
+  ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "Permissions-Policy", "value": "geolocation=(), interest-cohort=()" },
+        { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/besoin/", "destination": "/besoin/index.html" },
+    { "source": "/confidentialite/", "destination": "/confidentialite/index.html" },
+    { "source": "/cgu/", "destination": "/cgu/index.html" },
+    { "source": "/cgv/", "destination": "/cgv/index.html" },
+    { "source": "/contact/", "destination": "/contact/index.html" },
+    { "source": "/mentions/", "destination": "/mentions/index.html" },
+    { "source": "/stores/", "destination": "/stores/index.html" },
+    { "source": "/supprimer/", "destination": "/supprimer/index.html" },
+    { "source": "/regles/", "destination": "/regles/index.html" },
+    { "source": "/introuvable/", "destination": "/introuvable/index.html" },
+    { "source": "/((?!api/|besoin|confidentialite|cgu|cgv|legal|contact|mentions|stores|supprimer|regles|introuvable|sw\\.js|manifest\\.webmanifest|robots\\.txt|sitemap\\.xml|offline\\.html).*)", "destination": "/index.html" }
+  ]
 }

@@ -1,0 +1,44 @@
+workflows:
+  gemelo-ios-testflight:
+    name: Gemelo iOS TestFlight
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    working_directory: app
+    integrations:
+      app_store_connect: Gemelo
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: online.gemelo.app
+      vars:
+        XCODE_PROJECT: App.xcodeproj
+        XCODE_SCHEME: App
+        APP_STORE_APPLE_ID: $APP_STORE_APPLE_ID
+      node: 22
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Installer les dépendances
+        script: npm ci
+      - name: Compiler le site
+        script: npm run build
+      - name: Synchroniser Capacitor iOS
+        script: npx cap sync ios
+      - name: Profils de signature
+        script: xcode-project use-profiles
+      - name: Numéro de build
+        script: |
+          cd ios/App
+          agvtool new-version -all $(($BUILD_NUMBER))
+      - name: Compiler l’IPA
+        script: |
+          cd ios/App
+          xcode-project build-ipa --project "$XCODE_PROJECT" --scheme "$XCODE_SCHEME"
+    artifacts:
+      - ios/App/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false

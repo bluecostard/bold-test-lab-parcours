@@ -1,4 +1,13 @@
-const KEY = "gemelo-account-v1";
+const BASE_KEY = "gemelo-account-v1";
+let accountScope = "guest";
+
+export function setAccountScope(id) {
+  accountScope = id || "guest";
+}
+
+function accountKey() {
+  return accountScope === "guest" ? BASE_KEY : `${BASE_KEY}:${accountScope}`;
+}
 
 const empty = {
   user: null,
@@ -24,7 +33,7 @@ const empty = {
 
 export function readAccount() {
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY) || "null");
+    const saved = JSON.parse(localStorage.getItem(accountKey()) || "null");
     const account = saved && typeof saved === "object" ? { ...empty, ...saved } : { ...empty };
     return {
       ...account,
@@ -39,5 +48,5 @@ export function readAccount() {
 
 export function writeAccount(account) {
   const stored = { ...account };
-  localStorage.setItem(KEY, JSON.stringify(stored));
+  localStorage.setItem(accountKey(), JSON.stringify(stored));
 }

@@ -3,14 +3,186 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#07111c" />
+    <meta name="theme-color" content="#071426" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Gemelo" />
+    <meta name="description" content="Gemelo : faites tester votre application ou votre site et gagnez en visibilité en partageant des retours utiles." />
+    <meta property="og:title" content="Gemelo" />
+    <meta property="og:description" content="Votre projet. Leur regard. Vos progrès." />
+    <meta property="og:image" content="https://gemelo.online/icon-512.png" />
+    <meta property="og:url" content="https://gemelo.online/" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="canonical" href="https://gemelo.online/" />
     <title>Gemelo</title>
-    <link rel="icon" href="/favicon.png" type="image/png" />
+    <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64" />
+    <link rel="icon" href="/icon-512.png" type="image/png" sizes="512x512" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link id="desktop-css" rel="stylesheet" href="/site/style.css" media="not all" />
+    <script>
+      (function () {
+        var params = new URLSearchParams(location.search);
+        var path = location.pathname;
+        var wantsApp = Boolean(params.get("ecran") || params.get("v1") === "1" || params.get("app") === "1"
+          || path === "/app" || path.indexOf("/app/") === 0 || path.indexOf("/besoin") === 0
+          || /^\/(confidentialite|cgu|cgv|legal|contact|mentions|stores|supprimer|regles|introuvable)(\/|$)/.test(path)
+          || /^#\/(verify|sign-up|sign-in|factor|continue|sso-callback|oauth)/i.test(location.hash));
+        var mobile = window.matchMedia("(max-width: 900px)").matches
+          || /Android|iPhone|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        window.__GEMELO_DESKTOP__ = !wantsApp && !mobile;
+        if (window.__GEMELO_DESKTOP__) {
+          document.title = "Gemelo — Les yeux rivés sur vous";
+          document.querySelector('meta[name="theme-color"]').setAttribute("content", "#071c2d");
+          document.getElementById("desktop-css").media = "all";
+        } else {
+          document.documentElement.classList.add("is-app");
+        }
+      })();
+    </script>
+    <style>
+      html.is-app #desktop-site { display: none !important; }
+      html:not(.is-app) #root { display: none !important; }
+    </style>
   </head>
   <body>
+    <div id="desktop-site">
+      <header class="wrap nav">
+        <a href="#" aria-label="Gemelo accueil"><img class="logo" src="/site/assets/logo.png" alt="Gemelo"></a>
+        <nav aria-label="Navigation">
+          <a href="#concept">Le concept</a>
+          <a href="#createurs">Créateurs</a>
+          <a href="#testeurs">Testeurs</a>
+        </nav>
+        <a class="navcta" href="#telecharger">L’application <span>↗</span></a>
+      </header>
+      <main>
+        <section class="wrap hero">
+          <div class="herocopy">
+            <span class="eyebrow"><i></i> LES YEUX RIVÉS SUR VOUS</span>
+            <h1>Votre projet.<br>Leur regard.<br><em>Vos progrès.</em></h1>
+            <p>Faites tester votre application ou votre site par une communauté curieuse. Et donnez de la visibilité à votre propre projet en partageant des avis utiles.</p>
+            <div class="storebuttons">
+              <a class="store" href="#telecharger"><span class="storeicon">●</span><span><small>Prochainement sur</small><strong>App Store</strong></span></a>
+              <a class="store" href="#telecharger"><span class="play">▶</span><span><small>Prochainement sur</small><strong>Google Play</strong></span></a>
+            </div>
+            <span class="availability">L’application arrive sur iOS et Android.</span>
+          </div>
+          <div class="herovisual" aria-label="Aperçu illustratif de Gemelo">
+            <div class="orbit"></div>
+            <div class="floating tagleft">Un autre regard change tout.</div>
+            <div class="phone">
+              <div class="island"></div>
+              <div class="screen">
+                <img src="/site/assets/logo.png" alt="Gemelo" class="phonelogo">
+                <div class="campaignhead"><span>À découvrir &amp; à tester</span><span>↗</span></div>
+                <div class="demoimage">
+                  <div class="abstract"><span></span><span></span></div>
+                  <span class="projectlabel">Votre prochaine découverte</span>
+                </div>
+                <h3>Un projet à explorer.</h3>
+                <p>Une expérience à améliorer.</p>
+                <span class="mockbutton">Découvrir le projet →</span>
+                <div class="mockreview">
+                  <span class="avatar">M</span>
+                  <div>
+                    <strong>Un retour qui fait avancer</strong>
+                    <p>« Le parcours serait plus clair avec… »</p>
+                  </div>
+                </div>
+                <div class="phonefooter">⌂ <span>♡</span> ↗ <span>▥</span></div>
+              </div>
+            </div>
+            <div class="floating tagright"><span>✦</span> Testez. Partagez. Progressez.</div>
+            <span class="visualnote">Aperçu illustratif de l’application</span>
+          </div>
+        </section>
+        <section id="concept" class="strip">
+          <div class="wrap stripinner">
+            <span>De vrais essais.</span>
+            <span>Des avis précis.</span>
+            <span>Des projets qui avancent.</span>
+          </div>
+        </section>
+        <section class="wrap concept section">
+          <div>
+            <span class="eyebrow">LE CONCEPT</span>
+            <h2>Chaque regard<br>peut faire <em>la différence.</em></h2>
+          </div>
+          <p>Gemelo relie les personnes qui créent des produits numériques à celles qui aiment les découvrir et les améliorer. Un bug repéré, un écran plus clair, un parcours plus simple : chaque contribution peut aider un projet à progresser.</p>
+        </section>
+        <section id="createurs" class="wrap creators section">
+          <div class="featurevisual">
+            <div class="report">
+              <span class="reportlabel">VOTRE PROJET, SOUS UN NOUVEL ANGLE</span>
+              <h3>Comprendre.<br>Améliorer.<br>Avancer.</h3>
+              <div class="reportrow"><span class="reporticon">⌖</span><div><strong>Bugs &amp; fonctionnement</strong><small>Quel écran ? Que s’est-il passé ?</small></div></div>
+              <div class="reportrow"><span class="reporticon">✦</span><div><strong>Design &amp; parcours</strong><small>Ce qui aide. Ce qui freine.</small></div></div>
+              <div class="reportrow"><span class="reporticon">▧</span><div><strong>Captures &amp; vidéos</strong><small>Des exemples pour mieux comprendre.</small></div></div>
+            </div>
+          </div>
+          <div class="featurecopy">
+            <span class="eyebrow">VOUS CRÉEZ UNE APPLICATION OU UN SITE ?</span>
+            <h2>Voyez votre produit<br>avec <em>un regard neuf.</em></h2>
+            <p>Présentez votre projet, ses images et vos consignes. Choisissez un créneau de mise en avant payante et invitez la communauté à explorer votre application, votre site ou votre version de test.</p>
+            <ul>
+              <li>Une page dédiée à votre projet et à ses liens.</li>
+              <li>Des retours sur le fonctionnement et l’expérience.</li>
+              <li>Vos résultats réunis pour repérer les améliorations.</li>
+            </ul>
+            <a class="textlink" href="#telecharger">Découvrir l’application à sa sortie ↗</a>
+            <p class="fine">La participation des membres détermine le nombre de retours reçus.</p>
+          </div>
+        </section>
+        <section id="testeurs" class="testersection">
+          <div class="wrap testerinner">
+            <div>
+              <span class="eyebrow">VOUS AIMEZ DÉCOUVRIR ET DONNER VOTRE AVIS ?</span>
+              <h2>Votre avis a de la valeur.<br><em>Votre projet aussi.</em></h2>
+              <p>Testez les projets présentés, décrivez votre expérience et partagez des captures ou des vidéos. Les contributions pertinentes et appréciées font progresser votre classement.</p>
+              <p>Si vous avez votre propre projet, il gagne sa place dans l’espace des testeurs tant que vous figurez dans le top 10.</p>
+              <a class="textlink" href="#telecharger">Rejoindre Gemelo prochainement ↗</a>
+            </div>
+            <div class="steps">
+              <article><span>01</span><div><h3>Explorez un projet</h3><p>Suivez les consignes et essayez le produit.</p></div></article>
+              <article><span>02</span><div><h3>Partagez un retour utile</h3><p>Décrivez les points forts et les difficultés rencontrées.</p></div></article>
+              <article><span>03</span><div><h3>Gagnez en visibilité</h3><p>Vos contributions font vivre votre place au classement.</p></div></article>
+            </div>
+          </div>
+        </section>
+        <section id="telecharger" class="wrap download section">
+          <span class="eyebrow">GEMELO ARRIVE SUR MOBILE</span>
+          <h2>Le prochain regard<br>sera peut-être <em>le vôtre.</em></h2>
+          <p>Les téléchargements ouvriront à la publication de l’application.</p>
+          <div class="storebuttons">
+            <button class="store unavailable" type="button" aria-label="App Store, bientôt disponible"><span class="storeicon">●</span><span><small>Bientôt disponible</small><strong>App Store</strong></span></button>
+            <button class="store unavailable" type="button" aria-label="Google Play, bientôt disponible"><span class="play">▶</span><span><small>Bientôt disponible</small><strong>Google Play</strong></span></button>
+          </div>
+          <p id="storeStatus" class="status" role="status" aria-live="polite"></p>
+          <div class="socials">
+            <span>Suivez le lancement sur @bluecostard</span>
+            <a href="https://www.instagram.com/bluecostard/" target="_blank" rel="noopener noreferrer">Instagram ↗</a>
+            <a href="https://www.tiktok.com/@bluecostard" target="_blank" rel="noopener noreferrer">TikTok ↗</a>
+          </div>
+        </section>
+      </main>
+      <footer class="wrap footer">
+        <img src="/site/assets/logo.png" alt="Gemelo">
+        <nav class="legal-nav" aria-label="Mentions">
+          <a href="/confidentialite/">Confidentialité</a>
+          <a href="/cgu/">CGU</a>
+          <a href="/cgv/">CGV</a>
+          <a href="/mentions/">Mentions</a>
+          <a href="/contact/">Contact</a>
+          <a href="/supprimer/">Compte</a>
+          <a href="/regles/">Règles</a>
+        </nav>
+        <a href="#">Retour en haut ↑</a>
+      </footer>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

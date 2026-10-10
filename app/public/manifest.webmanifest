@@ -1,0 +1,47 @@
+{
+  "name": "Gemelo",
+  "short_name": "Gemelo",
+  "lang": "fr",
+  "display": "standalone",
+  "start_url": "/?app=1",
+  "scope": "/",
+  "id": "/?app=1",
+  "theme_color": "#071426",
+  "background_color": "#071426",
+  "categories": ["productivity"],
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/stores/captures/01-accueil.jpg",
+      "sizes": "1290x2796",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Accueil"
+    },
+    {
+      "src": "/stores/captures/02-campagne.jpg",
+      "sizes": "1290x2796",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Campagne"
+    },
+    {
+      "src": "/stores/captures/10-classement.jpg",
+      "sizes": "1290x2796",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Classement"
+    }
+  ]
+}

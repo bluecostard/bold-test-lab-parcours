@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://gemelo.online/sitemap.xml

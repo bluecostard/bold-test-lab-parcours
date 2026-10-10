@@ -1,0 +1,34 @@
+{
+  "appId": "online.gemelo.app",
+  "appName": "Gemelo",
+  "webDir": "dist",
+  "server": {
+    "url": "https://gemelo.online/?app=1",
+    "cleartext": false,
+    "allowNavigation": [
+      "gemelo.online",
+      "www.gemelo.online",
+      "*.clerk.com",
+      "*.clerk.accounts.dev",
+      "checkout.stripe.com",
+      "*.stripe.com"
+    ]
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "preferredContentMode": "mobile",
+    "scheme": "App"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 400,
+      "launchAutoHide": true,
+      "backgroundColor": "#071426",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#071426"
+    }
+  }
+}
