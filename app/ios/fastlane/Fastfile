@@ -1,3 +1,5 @@
+require "shellwords"
+
 default_platform(:ios)
 
 platform :ios do
@@ -18,14 +20,19 @@ platform :ios do
     )
 
     keychain_path = File.expand_path("~/Library/Keychains/fastlane_tmp_keychain-db")
+    keychain_password = ENV["KEYCHAIN_PASSWORD"].to_s
 
     cert(
       api_key: api_key,
       force: true,
       generate_apple_certs: false,
-      skip_set_partition_list: true,
-      keychain_path: keychain_path
+      keychain_path: keychain_path,
+      keychain_password: keychain_password
     )
+
+    sh("security unlock-keychain -p #{keychain_password.shellescape} #{keychain_path.shellescape}")
+    sh("security set-keychain-settings -t 3600 -l #{keychain_path.shellescape}")
+    sh("security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k #{keychain_password.shellescape} #{keychain_path.shellescape} || true")
 
     sigh(
       api_key: api_key,
@@ -52,6 +59,7 @@ platform :ios do
       export_method: "app-store",
       output_directory: "build",
       output_name: "Gemelo.ipa",
+      xcpretty_args: "--no-color",
       xcargs: "DEVELOPMENT_TEAM=2K393S427L",
       export_options: {
         method: "app-store",

@@ -48,5 +48,6 @@ jobs:
           working-directory: app/ios
 
       - name: Archiver et envoyer sur TestFlight
+        timeout-minutes: 40
         working-directory: app/ios
         run: bundle exec fastlane ios beta
