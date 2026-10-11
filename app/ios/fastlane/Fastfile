@@ -59,7 +59,6 @@ platform :ios do
       export_method: "app-store",
       output_directory: "build",
       output_name: "Gemelo.ipa",
-      xcpretty_args: "--no-color",
       xcargs: "DEVELOPMENT_TEAM=2K393S427L",
       export_options: {
         method: "app-store",
