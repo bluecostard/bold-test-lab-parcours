@@ -4,8 +4,9 @@ import { readAccount, writeAccount } from "../screens/account.js";
 import { slotAvailable } from "../../lib/availability.js";
 import { apply, addDays, demoOfferDays, formattedDate, localToday, slotEnded } from "./booking.js";
 import { useCampaignCatalog } from "./catalog.js";
-import { confirmCheckout, paymentMode, startCheckout } from "./checkoutApi.js";
-import { offers } from "./data.js";
+import { confirmAppleCheckout, confirmCheckout, paymentMode, startAppleCheckout, startCheckout } from "./checkoutApi.js";
+import { finishAppleProduct, isNativeIos, purchaseAppleProduct } from "./nativePay.js";
+import { formatOfferPrice, formatStoredOfferPrice, offers } from "./data.js";
 import { hostMediaValue, uploadMedia } from "./mediaApi.js";
 import { listReviews } from "./reviewsApi.js";
 import { hasPaidCampaign } from "./state.js";
@@ -85,7 +86,7 @@ function reportText(account, reviews = []) {
   const stats = reviewStats(reviews);
   return [
     `Rapport — ${account.projectName || "projet"}`,
-    `Offre : ${account.offerLabel || "—"} · ${account.offerPrice || "—"} €`,
+    `Offre : ${account.offerLabel || "—"} · ${account.offerPrice != null ? formatStoredOfferPrice(account.offerPrice, isNativeIos()) : "—"}`,
     `Date : ${formattedDate(account.offerDate)}`,
     "",
     "Vue d’ensemble",
@@ -298,7 +299,7 @@ export function OfferScreen({ navigate, back, pageRef }) {
     <PageShell pageRef={pageRef}>
       <main className="v2-stack">
         <BackButton onClick={back} /><div><h1>Choisir <span className="v2-accent">une offre</span></h1><p className="v2-muted">Voyez les tarifs, choisissez un créneau, puis décrivez votre projet.</p></div><ProjectSummary account={account} />
-        <Card><SectionTitle icon="◷" title="1. Choisir une offre" description="Sélectionnez un créneau disponible." /><div className="v2-offer-list" role="radiogroup" aria-label="Offres de campagne">{offers.map((offer, index) => <button key={offer.label} type="button" role="radio" aria-checked={selectedIndex === index} className={selectedIndex === index ? "is-selected" : ""} onClick={() => choose(index)}><span><strong>{offer.label}</strong><small>{offer.range}</small></span><b>{offer.price} €</b><i aria-hidden="true" /></button>)}</div></Card>
+        <Card><SectionTitle icon="◷" title="1. Choisir une offre" description="Sélectionnez un créneau disponible." /><div className="v2-offer-list" role="radiogroup" aria-label="Offres de campagne">{offers.map((offer, index) => <button key={offer.label} type="button" role="radio" aria-checked={selectedIndex === index} className={selectedIndex === index ? "is-selected" : ""} onClick={() => choose(index)}><span><strong>{offer.label}</strong><small>{offer.range}</small></span><b>{formatOfferPrice(offer, isNativeIos())}</b><i aria-hidden="true" /></button>)}</div></Card>
         <Card>
           <SectionTitle icon="▦" title="2. Choisir le jour" description="Vérifiez la disponibilité pour votre campagne." />
           <div className="v2-day-list" role="radiogroup" aria-label="Jours disponibles">
@@ -335,7 +336,7 @@ export function OfferScreen({ navigate, back, pageRef }) {
           <p className="v2-info">Disponible ou Complet se calcule sur les campagnes déjà payées pour le même créneau.</p>
         </Card>
         <Card><SectionTitle icon="✓" title="Ce que comprend chaque offre" /><div className="v2-benefits"><article><strong>◉</strong><span>Visibilité dès l’ouverture</span></article><article><strong>▤</strong><span>Page projet dédiée</span></article><article><strong>▥</strong><span>Suivi des résultats</span></article><article><strong>▧</strong><span>Rapport final</span></article><article><strong>◈</strong><span>Seul votre service est sous les projecteurs, le jour et la période choisis.</span></article></div><p className="v2-info">Aucune offre ne garantit un nombre de tests ou d’avis positifs.</p></Card>
-        <Card className="v2-offer-summary"><ProjectSummary account={account} /><p><strong>{selected?.label || "Offre à choisir"}</strong> · {selected ? `${selected.price} €` : "—"}<br />{formattedDate(date)}{date ? ` · ${chosenAvailable ? "Disponible" : "Complet"}` : ""}</p><p className="v2-info">Vous pouvez modifier le jour, la période ou annuler jusqu’à 72 h avant le début, depuis votre compte.</p>{date && !chosenAvailable ? <p className="v2-info" role="status">Ce créneau est complet. Choisissez un autre jour.</p> : null}<Button type="button" disabled={!selected || !date || !chosenAvailable} onClick={() => { apply({ date }); navigate(hasProjectDraft(account) ? "payment" : "entrepreneur"); }}>{hasProjectDraft(account) ? "Continuer vers le paiement" : "Continuer et décrire le projet"} <span aria-hidden="true">→</span></Button></Card>
+        <Card className="v2-offer-summary"><ProjectSummary account={account} /><p><strong>{selected?.label || "Offre à choisir"}</strong> · {selected ? formatOfferPrice(selected, isNativeIos()) : "—"}<br />{formattedDate(date)}{date ? ` · ${chosenAvailable ? "Disponible" : "Complet"}` : ""}</p><p className="v2-info">Vous pouvez modifier le jour, la période ou annuler jusqu’à 72 h avant le début, depuis votre compte.</p>{date && !chosenAvailable ? <p className="v2-info" role="status">Ce créneau est complet. Choisissez un autre jour.</p> : null}<Button type="button" disabled={!selected || !date || !chosenAvailable} onClick={() => { apply({ date }); navigate(hasProjectDraft(account) ? "payment" : "entrepreneur"); }}>{hasProjectDraft(account) ? "Continuer vers le paiement" : "Continuer et décrire le projet"} <span aria-hidden="true">→</span></Button></Card>
       </main>
     </PageShell>
   );
@@ -434,18 +435,41 @@ function PaymentBody({ navigate, back, pageRef, getToken, user }) {
         projectLogo: payload.logo,
         projectScreens: payload.screenshots,
       });
-      const checkout = await startCheckout(getToken, {
+      const common = {
         ...payload,
         offerLabel: next.offerLabel,
         offerRange: next.offerRange,
         offerPrice: next.offerPrice,
         offerDate: next.offerDate,
         email: user.primaryEmailAddress?.emailAddress || "",
-      });
+      };
+      if (isNativeIos()) {
+        const prepared = await startAppleCheckout(getToken, common);
+        const purchase = await purchaseAppleProduct(prepared.productId);
+        const result = await confirmAppleCheckout(getToken, {
+          bookingRef: prepared.bookingRef,
+          productId: prepared.productId,
+          transactionId: purchase.transactionId,
+          jws: purchase.jws,
+        });
+        if (!result.paid) throw new Error("Achat Apple introuvable.");
+        if (purchase.transactionId) await finishAppleProduct(purchase.transactionId);
+        writeAccount({
+          ...readAccount(),
+          campaignPaid: true,
+          campaignId: result.campaignId,
+          offerLabel: result.offerLabel || next.offerLabel,
+          offerPrice: result.offerPrice || next.offerPrice,
+          offerDate: result.offerDate || next.offerDate,
+        });
+        navigate("confirmation", {}, true);
+        return;
+      }
+      const checkout = await startCheckout(getToken, common);
       if (!checkout.url) throw new Error("Impossible d’ouvrir Stripe.");
       window.location.href = checkout.url;
     } catch (payError) {
-      setError(payError.message || "Impossible d’ouvrir Stripe.");
+      setError(payError.message || "Impossible d’ouvrir le paiement.");
       setBusy(false);
     }
   }
@@ -487,19 +511,19 @@ function PaymentBody({ navigate, back, pageRef, getToken, user }) {
         </Card>
         <Card>
           <SectionTitle icon="◇" title="Détail du paiement" />
-          <div className="v2-total"><span>{account.offerLabel}</span><b>{account.offerPrice} €</b></div>
-          <div className="v2-total"><strong>Total à payer</strong><strong>{account.offerPrice} €</strong></div>
+          <div className="v2-total"><span>{account.offerLabel}</span><b>{formatStoredOfferPrice(account.offerPrice, isNativeIos())}</b></div>
+          <div className="v2-total"><strong>Total à payer</strong><strong>{formatStoredOfferPrice(account.offerPrice, isNativeIos())}</strong></div>
         </Card>
         <p className="v2-info">Votre créneau sera confirmé après validation du paiement.</p>
-        {payMode && !payMode.livemode ? (
+        {payMode && !payMode.livemode && !isNativeIos() ? (
           <p className="v2-info" role="status">Paiement de test Stripe. Aucune carte réelle n’est débitée.</p>
         ) : null}
         {error ? <p className="v2-error" role="alert">{error}</p> : null}
         <Button type="button" disabled={busy} onClick={confirm}>
-          {busy ? "Redirection…" : `Payer ${account.offerPrice} € avec Stripe`}
-          {busy ? null : <span aria-hidden="true"> ↗</span>}
+          {busy ? "Paiement…" : isNativeIos() ? `Payer ${formatStoredOfferPrice(account.offerPrice, true)}` : `Payer ${account.offerPrice} € avec Stripe`}
+          {busy || isNativeIos() ? null : <span aria-hidden="true"> ↗</span>}
         </Button>
-        <p className="v2-helper"><span aria-hidden="true">🔒 </span>Paiement sécurisé sur la page Stripe.</p>
+        <p className="v2-helper"><span aria-hidden="true">🔒 </span>{isNativeIos() ? "Paiement via l’App Store." : "Paiement sécurisé sur la page Stripe."}</p>
       </main>
     </PageShell>
   );
@@ -576,7 +600,7 @@ function ConfirmationBody({ navigate, pageRef, getToken }) {
             </div>
             <div>
               <dt>💳 Montant</dt>
-              <dd>{account.offerPrice} € payés</dd>
+              <dd>{formatStoredOfferPrice(account.offerPrice, isNativeIos())} payés</dd>
             </div>
           </dl>
         </Card>
@@ -592,7 +616,7 @@ function ConfirmationBody({ navigate, pageRef, getToken }) {
         {receipt ? (
           <Card>
             <SectionTitle title="Reçu" />
-            <p className="v2-review-copy">{account.projectName || "Votre projet"} · {account.offerLabel} · {account.offerPrice} € payés · {slot.range}</p>
+            <p className="v2-review-copy">{account.projectName || "Votre projet"} · {account.offerLabel} · {formatStoredOfferPrice(account.offerPrice, isNativeIos())} payés · {slot.range}</p>
           </Card>
         ) : null}
       </main>

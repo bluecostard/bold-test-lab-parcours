@@ -3,7 +3,8 @@ import { SignIn, SignUp, useAuth, useClerk, useSignIn, useUser } from "@clerk/re
 import { slotAvailable } from "../../lib/availability.js";
 import { apply, campaignDeadlineLabel, campaignPeriodLabel, campaignRemainingMsFor, campaignTimerParts, campaignTimerProgress, canManageBooking, demoOfferDays, formattedDate, localToday } from "./booking.js";
 import { useCampaignCatalog } from "./catalog.js";
-import { campaigns, offers, ranking, testerComments, testerRail } from "./data.js";
+import { campaigns, formatOfferPrice, formatStoredOfferPrice, offers, ranking, testerComments, testerRail } from "./data.js";
+import { isNativeIos } from "./nativePay.js";
 import { readAccount, writeAccount } from "../screens/account.js";
 import { readQuestion, answerQuestion } from "./questionsApi.js";
 import { forgetFile, isHostedMedia, rememberFile, uploadMedia } from "./mediaApi.js";
@@ -1315,7 +1316,7 @@ function BookingSlotCard() {
     <Card>
       <SectionTitle icon="▦" title="Mon créneau" />
       <p className="v2-review-copy">
-        <strong>{account.offerLabel}</strong> · {account.offerPrice} €
+        <strong>{account.offerLabel}</strong> · {formatStoredOfferPrice(account.offerPrice, isNativeIos())}
         <br />
         {formattedDate(account.offerDate)} · {account.offerRange}
       </p>
@@ -1337,7 +1338,7 @@ function BookingSlotCard() {
                     onClick={() => changeOffer(index)}
                   >
                     <span><strong>{offer.label}</strong><small>{offer.range}</small></span>
-                    <b>{offer.price} €</b>
+                    <b>{formatOfferPrice(offer, isNativeIos())}</b>
                     <i aria-hidden="true" />
                   </button>
                 ))}

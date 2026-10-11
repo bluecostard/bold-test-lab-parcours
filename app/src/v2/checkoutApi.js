@@ -32,6 +32,28 @@ export async function startCheckout(getToken, payload) {
   return data;
 }
 
+export async function startAppleCheckout(getToken, payload) {
+  const response = await fetch("/api/iap", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeader(getToken)) },
+    body: JSON.stringify(payload),
+  });
+  const data = await readJson(response);
+  if (!response.ok) throw new Error(data.error || "Impossible de préparer l’achat Apple.");
+  return data;
+}
+
+export async function confirmAppleCheckout(getToken, payload) {
+  const response = await fetch("/api/iap", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeader(getToken)) },
+    body: JSON.stringify(payload),
+  });
+  const data = await readJson(response);
+  if (!response.ok) throw new Error(data.error || "Achat Apple introuvable.");
+  return data;
+}
+
 export async function confirmCheckout(getToken, sessionId) {
   const response = await fetch(`/api/checkout?session_id=${encodeURIComponent(sessionId)}`, {
     headers: { ...(await authHeader(getToken)) },

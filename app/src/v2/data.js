@@ -423,4 +423,4 @@ export const demoReports = [
   },
 ];
 
-export { OFFERS as offers } from "../../lib/offers.js";
+export { OFFERS as offers, formatOfferPrice, formatStoredOfferPrice } from "../../lib/offers.js";
