@@ -18,8 +18,7 @@ platform :ios do
     )
 
     cert(
-      api_key: api_key,
-      type: "appstore"
+      api_key: api_key
     )
 
     profile = sigh(
