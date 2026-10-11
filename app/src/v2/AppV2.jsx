@@ -243,6 +243,8 @@ export function AppV2() {
     let startY = 0;
     let tracking = false;
     let fired = false;
+    const capture = { capture: true, passive: true };
+    const moveOpts = { capture: true, passive: false };
     function loc(event) {
       return event.changedTouches?.[0] || event.touches?.[0] || event;
     }
@@ -251,9 +253,8 @@ export function AppV2() {
       const root = pageRef.current;
       const rect = root?.getBoundingClientRect();
       const left = rect ? rect.left : 0;
-      const width = rect ? rect.width : window.innerWidth;
       const x = point.clientX - left;
-      const zone = Math.max(88, width * 0.36);
+      const zone = 28;
       const top = rect ? rect.top : 0;
       const bottom = rect ? rect.bottom : window.innerHeight;
       return x >= -32 && x <= zone && point.clientY >= top - 8 && point.clientY <= bottom + 8;
@@ -274,20 +275,33 @@ export function AppV2() {
       startY = point.clientY;
       tracking = true;
       fired = false;
+      document.addEventListener("pointermove", move, moveOpts);
+      document.addEventListener("touchmove", move, moveOpts);
+    }
+    function stopMove() {
+      document.removeEventListener("pointermove", move, moveOpts);
+      document.removeEventListener("touchmove", move, moveOpts);
     }
     function move(event) {
       if (!tracking || fired) return;
       const point = loc(event);
       const dx = point.clientX - startX;
       const dy = point.clientY - startY;
+      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 8) {
+        tracking = false;
+        stopMove();
+        return;
+      }
       if (dx > 10 && Math.abs(dx) > Math.abs(dy) && event.cancelable) event.preventDefault();
       if (isBack(dx, dy)) {
         fired = true;
         tracking = false;
+        stopMove();
         backRef.current();
       }
     }
     function end(event) {
+      stopMove();
       if (!tracking || fired) {
         tracking = false;
         return;
@@ -298,24 +312,20 @@ export function AppV2() {
     }
     function cancel() {
       tracking = false;
+      stopMove();
     }
-    const capture = { capture: true, passive: true };
-    const moveOpts = { capture: true, passive: false };
     document.addEventListener("pointerdown", begin, capture);
-    document.addEventListener("pointermove", move, moveOpts);
     document.addEventListener("pointerup", end, capture);
     document.addEventListener("pointercancel", cancel, capture);
     document.addEventListener("touchstart", begin, capture);
-    document.addEventListener("touchmove", move, moveOpts);
     document.addEventListener("touchend", end, capture);
     document.addEventListener("touchcancel", cancel, capture);
     return () => {
+      stopMove();
       document.removeEventListener("pointerdown", begin, capture);
-      document.removeEventListener("pointermove", move, moveOpts);
       document.removeEventListener("pointerup", end, capture);
       document.removeEventListener("pointercancel", cancel, capture);
       document.removeEventListener("touchstart", begin, capture);
-      document.removeEventListener("touchmove", move, moveOpts);
       document.removeEventListener("touchend", end, capture);
       document.removeEventListener("touchcancel", cancel, capture);
     };
