@@ -1,5 +1,6 @@
 import Capacitor
 import StoreKit
+import UIKit
 
 @objc(GemeloIapPlugin)
 public class GemeloIapPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -23,7 +24,7 @@ public class GemeloIapPlugin: CAPPlugin, CAPBridgedPlugin {
           call.reject("Cette offre n’est pas encore ouverte dans l’App Store.")
           return
         }
-        let result = try await product.purchase()
+        let result = try await self.purchaseProduct(product)
         switch result {
         case .success(let verification):
           let transaction = try self.checked(verification)
@@ -55,6 +56,25 @@ public class GemeloIapPlugin: CAPPlugin, CAPBridgedPlugin {
       }
       call.resolve()
     }
+  }
+
+  @MainActor
+  private func purchaseProduct(_ product: Product) async throws -> Product.PurchaseResult {
+    if #available(iOS 17.0, *) {
+      if let scene = self.activeWindowScene() {
+        return try await product.purchase(confirmIn: scene)
+      }
+    }
+    return try await product.purchase()
+  }
+
+  @MainActor
+  private func activeWindowScene() -> UIWindowScene? {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    return scenes.first(where: { $0.activationState == .foregroundActive })
+      ?? scenes.first(where: { $0.activationState == .foregroundInactive })
+      ?? self.bridge?.viewController?.view.window?.windowScene
+      ?? scenes.first
   }
 
   private func checked<T>(_ result: VerificationResult<T>) throws -> T {

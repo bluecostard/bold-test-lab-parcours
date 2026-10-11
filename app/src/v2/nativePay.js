@@ -11,11 +11,23 @@ function pluginMessage(error) {
   return error?.message || error?.errorMessage || String(error || "Erreur App Store.");
 }
 
+function withTimeout(promise, ms, message) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 export async function purchaseAppleProduct(productId) {
   try {
     const GemeloIap = await iapPlugin();
     if (!GemeloIap?.purchase) throw new Error("Achats Apple indisponibles dans cette version. Mettez Gemelo à jour via TestFlight.");
-    return await GemeloIap.purchase({ productId });
+    return await withTimeout(
+      GemeloIap.purchase({ productId }),
+      90000,
+      "La fenêtre App Store ne s’est pas ouverte. Fermez Gemelo, rouvrez-la, puis réessayez. Compte Sandbox requis dans Réglages → App Store.",
+    );
   } catch (error) {
     throw new Error(pluginMessage(error));
   }

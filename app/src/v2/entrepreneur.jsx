@@ -7,7 +7,15 @@ import { useCampaignCatalog } from "./catalog.js";
 import { confirmAppleCheckout, confirmCheckout, paymentMode, startAppleCheckout, startCheckout } from "./checkoutApi.js";
 import { finishAppleProduct, isNativeIos, purchaseAppleProduct } from "./nativePay.js";
 import { formatOfferPrice, formatStoredOfferPrice, offers } from "./data.js";
-import { hostMediaValue, imageFileToJpeg, previewUrl, uploadMedia } from "./mediaApi.js";
+import {
+  forgetBlobFile,
+  hostMediaValue,
+  imageFileToJpeg,
+  previewUrl,
+  rememberBlobFile,
+  snapshotFiles,
+  uploadMedia,
+} from "./mediaApi.js";
 import { listReviews } from "./reviewsApi.js";
 import { hasPaidCampaign } from "./state.js";
 import { BackButton, Button, Card, EntrepreneurNav, Field, Header, PageShell, SectionTitle, Tags } from "./primitives.jsx";
@@ -150,7 +158,16 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
   const screenInput = useRef(null);
 
   async function chooseLogo(event) {
-    const file = event.target.files?.[0];
+    // Copier avant value="" : sinon la FileList live devient vide sur iPhone.
+    const picked = Array.from(event.target.files || []);
+    event.target.value = "";
+    let file;
+    try {
+      file = (await snapshotFiles(picked))[0];
+    } catch {
+      setImageError("Impossible de lire cette photo. Réessayez.");
+      return;
+    }
     if (!file) return;
     setImageError("");
     let local = "";
@@ -158,47 +175,69 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
       // HEIC iPhone : aperçu blob brut souvent vide dans WKWebView — JPEG d’abord.
       const jpeg = await imageFileToJpeg(file, 720);
       local = previewUrl(jpeg);
+      rememberBlobFile(local, jpeg);
       setLogo(local);
       if (getToken) {
         const uploaded = await uploadMedia(getToken, jpeg, "image");
-        setLogo(uploaded.url);
+        forgetBlobFile(local);
         URL.revokeObjectURL(local);
+        setLogo(uploaded.url);
       }
     } catch (error) {
       if (local) {
+        forgetBlobFile(local);
         URL.revokeObjectURL(local);
         setLogo("");
       }
       setImageError(error.message || "Impossible d’ajouter ce logo. Essayez un JPG ou un PNG.");
     }
-    event.target.value = "";
   }
   async function chooseScreens(event) {
-    const files = Array.from(event.target.files || []);
+    const picked = Array.from(event.target.files || []);
+    event.target.value = "";
+    let files;
+    try {
+      files = await snapshotFiles(picked);
+    } catch {
+      setImageError("Impossible de lire les photos sélectionnées. Réessayez.");
+      return;
+    }
     if (!files.length) return;
     if (screens.length + files.length > 6) {
       setImageError("Vous pouvez conserver jusqu’à 6 captures.");
-      event.target.value = "";
       return;
     }
     setImageError("");
-    const locals = [];
-    try {
-      for (const file of files) {
+    const failures = [];
+    for (const file of files) {
+      let local = "";
+      try {
         const jpeg = await imageFileToJpeg(file);
-        const local = previewUrl(jpeg);
-        locals.push(local);
+        local = previewUrl(jpeg);
+        rememberBlobFile(local, jpeg);
         setScreens((current) => [...current, local]);
         if (getToken) {
           const uploaded = await uploadMedia(getToken, jpeg, "image");
-          setScreens((current) => current.map((src) => (src === local ? uploaded.url : src)));
+          forgetBlobFile(local);
           URL.revokeObjectURL(local);
+          setScreens((current) => current.map((src) => (src === local ? uploaded.url : src)));
         }
+      } catch (error) {
+        if (local) {
+          forgetBlobFile(local);
+          URL.revokeObjectURL(local);
+          setScreens((current) => current.filter((src) => src !== local));
+        }
+        failures.push(error.message || "capture refusée");
       }
-    } catch (error) {
-      setImageError(error.message || "Impossible d’ajouter ces captures. Essayez des JPG ou PNG.");
     }
-    event.target.value = "";
+    if (failures.length) {
+      setImageError(
+        failures.length === files.length
+          ? "Impossible d’ajouter ces captures. Essayez des JPG ou PNG."
+          : `${files.length - failures.length} capture(s) ajoutée(s), ${failures.length} refusée(s).`,
+      );
+    }
   }
   function save(event) {
     event.preventDefault();
@@ -419,9 +458,16 @@ function PaymentBody({ navigate, back, pageRef, getToken, user }) {
     try {
       const next = readAccount();
       const payload = campaignPayload(next);
+      const shots = payload.screenshots || [];
+      setStatus(shots.length ? `Envoi des visuels (0/${shots.length + 1})…` : "Envoi du logo…");
       payload.logo = await hostMediaValue(getToken, payload.logo, "logo.jpg");
-      payload.cover = await hostMediaValue(getToken, payload.cover, "cover.jpg");
-      payload.screenshots = (await Promise.all((payload.screenshots || []).map((src, index) => hostMediaValue(getToken, src, `capture-${index + 1}.jpg`)))).filter(Boolean);
+      const hostedShots = [];
+      for (let index = 0; index < shots.length; index += 1) {
+        setStatus(`Envoi des visuels (${index + 1}/${shots.length})…`);
+        hostedShots.push(await hostMediaValue(getToken, shots[index], `capture-${index + 1}.jpg`));
+      }
+      payload.screenshots = hostedShots.filter(Boolean);
+      payload.cover = payload.screenshots[0] || payload.logo || "";
       writeAccount({
         ...readAccount(),
         projectLogo: payload.logo,
@@ -436,9 +482,10 @@ function PaymentBody({ navigate, back, pageRef, getToken, user }) {
         email: user.primaryEmailAddress?.emailAddress || "",
       };
       if (isNativeIos()) {
-        setStatus("Ouverture de l’App Store…");
+        setStatus("Réservation du créneau…");
         const prepared = await startAppleCheckout(getToken, common);
         if (!prepared.productId) throw new Error("Offre Apple introuvable.");
+        setStatus("Ouverture de l’App Store…");
         const purchase = await purchaseAppleProduct(prepared.productId);
         setStatus("Confirmation du paiement…");
         const result = await confirmAppleCheckout(getToken, {
