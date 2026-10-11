@@ -435,7 +435,18 @@ button.v2-avis-frame {
 }
 .v2-logo-editor > div { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .v2-text-button { min-height: 42px; border: 0; background: transparent; color: var(--v2-accent); font-size: 16px; text-align: left; text-decoration: underline; cursor: pointer; }
-.v2-hidden-input { position: fixed; left: -9999px; }
+.v2-hidden-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  opacity: 0;
+}
 .v2-capture-list { display: flex; gap: 9px; overflow-x: auto; scroll-snap-type: x mandatory; touch-action: pan-x pan-y; }
 .v2-capture-list figure { flex: 0 0 112px; margin: 0; scroll-snap-align: start; }
 .v2-capture-list img { width: 112px; height: 172px; display: block; border-radius: 13px; background: var(--v2-bg); object-fit: contain; }

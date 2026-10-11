@@ -16,7 +16,7 @@ public class GemeloIapPlugin: CAPPlugin, CAPBridgedPlugin {
       call.reject("Offre introuvable.")
       return
     }
-    Task {
+    Task { @MainActor in
       do {
         let products = try await Product.products(for: [productId])
         guard let product = products.first else {
@@ -46,9 +46,9 @@ public class GemeloIapPlugin: CAPPlugin, CAPBridgedPlugin {
 
   @objc func finish(_ call: CAPPluginCall) {
     let expected = call.getString("transactionId") ?? ""
-    Task {
+    Task { @MainActor in
       for await update in Transaction.unfinished {
-        if let transaction = try? checked(update), String(transaction.id) == expected {
+        if let transaction = try? self.checked(update), String(transaction.id) == expected {
           await transaction.finish()
           break
         }
