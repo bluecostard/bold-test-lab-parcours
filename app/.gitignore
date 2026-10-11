@@ -6,6 +6,11 @@ dist
 !.env.example
 ios/App/Pods
 ios/App/build
+ios/build
 ios/App/App/public
 ios/capacitor-cordova-ios-plugins
 ios/DerivedData
+ios/fastlane/report.xml
+ios/fastlane/Preview.html
+ios/fastlane/screenshots
+ios/*.mobileprovision
