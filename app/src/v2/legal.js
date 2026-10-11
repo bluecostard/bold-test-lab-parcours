@@ -70,7 +70,7 @@ export const legalPages = {
     path: "/confidentialite/",
     title: "Confidentialité",
     body: [
-      "Dernière mise à jour : 10 octobre 2026.",
+      "Dernière mise à jour : 11 octobre 2026.",
       "Cette page décrit les données traitées par Gemelo, service accessible à gemelo.online. Elle vaut politique de confidentialité.",
       "Responsable. Blue Costard Compagnie (SIRET 109 416 958 00014), éditeur de Gemelo, joignable via gemelo.online/contact/, Réglages → Contact, ou Instagram et TikTok @bluecostard.",
       "Âge. Le service est réservé aux personnes de 16 ans et plus. La confirmation d’âge est enregistrée sur l’appareil.",
@@ -79,6 +79,7 @@ export const legalPages = {
       "Avis. Le texte, les photos et les vidéos d’un avis publié sont hébergés pour les montrer aux autres membres et à l’entrepreneur. Un like est enregistré sans que vous puissiez aimer votre propre avis.",
       "Paiement. Stripe traite le paiement du créneau. Gemelo ne stocke pas le numéro de carte, le CVC ni les données bancaires.",
       "Demandes de créneau. Le formulaire /besoin envoie le nom du projet, le lien et l’e-mail professionnel pour recontacter le demandeur. Aucun paiement n’est pris sur ce formulaire.",
+      "E-mails. Après inscription, Gemelo peut envoyer un message de bienvenue, puis des e-mails de nouvelle campagne, de classement hebdomadaire et de fin de créneau. Ces messages partent de bonjour@gemelo.online. Vous gérez ces envois dans Réglages → Notifications, ou via le lien de désinscription des messages concernés. L’adresse utilisée pour vous écrire est celle du compte Clerk.",
       "Durée. Les données de compte et d’avis restent tant que le compte existe, ou jusqu’à ce que l’avis soit retiré. Les brouillons restent dans le navigateur de l’appareil.",
       "Vos droits. Vous pouvez consulter et modifier votre profil dans l’application. Vous pouvez télécharger une copie des données de cet appareil depuis Réglages → Mes données. Vous pouvez supprimer votre compte depuis Réglages, ou depuis gemelo.online/supprimer/ : cela efface les données locales de cet appareil et demande la fermeture du compte Clerk.",
       "Cookies. Clerk dépose des cookies ou un stockage de session pour maintenir la connexion. Gemelo n’utilise pas de publicité tierce.",

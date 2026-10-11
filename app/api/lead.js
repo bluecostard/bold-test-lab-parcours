@@ -77,7 +77,7 @@ async function notifyEmail(lead) {
         method: "POST",
         headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          from: process.env.SMOKE_FROM_EMAIL || "Gemelo <beth.t@example.com>",
+          from: "Gemelo <bonjour@gemelo.online>",
           to: [to],
           subject,
           text,
@@ -102,7 +102,7 @@ function sendGmail({ user, pass, recipients, subject, text }) {
   const encodedSubject = `=?UTF-8?B?${Buffer.from(subject, "utf8").toString("base64")}?=`;
   const body = text.replace(/\r?\n/g, "\r\n").replace(/^\./gm, "..");
   const payload = [
-    `From: Gemelo <${user}>`,
+    `From: Gemelo <bonjour@gemelo.online>`,
     `To: ${recipients.join(", ")}`,
     `Subject: ${encodedSubject}`,
     "MIME-Version: 1.0",

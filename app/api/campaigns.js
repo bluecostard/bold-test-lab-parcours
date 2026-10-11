@@ -2,6 +2,7 @@ import { readClerkUser } from "../lib/clerkAuth.js";
 import { listCampaigns, readCampaign, saveCampaign } from "../lib/campaignStore.js";
 import { draftCampaign, mapSocials } from "../lib/campaignDraft.js";
 import { readBooking } from "../lib/bookingStore.js";
+import { runMailJobs } from "../lib/mailJobs.js";
 
 function clean(value, limit = 240) {
   return typeof value === "string" ? value.trim().slice(0, limit) : "";
@@ -44,6 +45,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ campaign: publicCampaign(campaign) });
       }
       const campaigns = (await listCampaigns()).filter((item) => item.live !== false);
+      runMailJobs().catch((error) => console.log("mail-jobs", String(error?.message || error).slice(0, 180)));
       return res.status(200).json({ campaigns: campaigns.map(publicCampaign) });
     } catch (error) {
       console.log("campaigns-get", String(error?.message || error).slice(0, 180));

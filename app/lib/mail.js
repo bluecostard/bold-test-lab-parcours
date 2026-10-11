@@ -1,30 +1,34 @@
 import tls from "node:tls";
 
+export const MAIL_FROM = "Gemelo <bonjour@gemelo.online>";
+export const MAIL_ADDRESS = "bonjour@gemelo.online";
+
 function clean(value, limit = 240) {
   return typeof value === "string" ? value.trim().slice(0, limit) : "";
 }
 
-export async function sendMail({ to, replyTo, subject, text }) {
+export async function sendMail({ to, replyTo, subject, text, html }) {
   const resendKey = process.env.RESEND_API_KEY;
-  const gmailUser = clean(process.env.GMAIL_USER || to, 254);
+  const gmailUser = clean(process.env.GMAIL_USER || "", 254);
   const gmailPass = (process.env.GMAIL_APP_PASSWORD || "").replace(/\s+/g, "");
   if (resendKey) {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: process.env.SMOKE_FROM_EMAIL || "Gemelo <beth.t@example.com>",
+        from: MAIL_FROM,
         to: [to],
-        reply_to: replyTo,
+        reply_to: replyTo || MAIL_ADDRESS,
         subject,
         text,
+        html,
       }),
     });
     if (!response.ok) throw new Error(`resend-${response.status}`);
     return;
   }
-  if (!gmailPass) throw new Error("missing-mail-provider");
-  await sendGmail({ user: gmailUser, pass: gmailPass, to, replyTo, subject, text });
+  if (!gmailPass || !gmailUser) throw new Error("missing-mail-provider");
+  await sendGmail({ user: gmailUser, pass: gmailPass, to, replyTo: replyTo || MAIL_ADDRESS, subject, text, html });
 }
 
 export async function notifyAdmin({ subject, text, replyTo }) {
@@ -34,20 +38,38 @@ export async function notifyAdmin({ subject, text, replyTo }) {
   return true;
 }
 
-function sendGmail({ user, pass, to, replyTo, subject, text }) {
+function sendGmail({ user, pass, to, replyTo, subject, text, html }) {
   const encodedSubject = `=?UTF-8?B?${Buffer.from(subject, "utf8").toString("base64")}?=`;
-  const body = text.replace(/\r?\n/g, "\r\n").replace(/^\./gm, "..");
+  const plain = String(text || "").replace(/\r?\n/g, "\r\n").replace(/^\./gm, "..");
+  const rich = String(html || "").replace(/\r?\n/g, "\r\n").replace(/^\./gm, "..");
+  const boundary = "gemelo-alt";
   const payload = [
-    `From: Gemelo <${user}>`,
+    `From: ${MAIL_FROM}`,
     `To: ${to}`,
-    replyTo ? `Reply-To: ${replyTo}` : null,
+    replyTo ? `Reply-To: ${replyTo}` : `Reply-To: ${MAIL_ADDRESS}`,
     `Subject: ${encodedSubject}`,
     "MIME-Version: 1.0",
-    "Content-Type: text/plain; charset=UTF-8",
-    "Content-Transfer-Encoding: 8bit",
+    html
+      ? `Content-Type: multipart/alternative; boundary="${boundary}"`
+      : "Content-Type: text/plain; charset=UTF-8",
+    html ? "" : "Content-Transfer-Encoding: 8bit",
     "",
-    body,
-    "",
+    html
+      ? [
+        `--${boundary}`,
+        "Content-Type: text/plain; charset=UTF-8",
+        "Content-Transfer-Encoding: 8bit",
+        "",
+        plain,
+        `--${boundary}`,
+        "Content-Type: text/html; charset=UTF-8",
+        "Content-Transfer-Encoding: 8bit",
+        "",
+        rich,
+        `--${boundary}--`,
+        "",
+      ].join("\r\n")
+      : `${plain}\r\n`,
   ].filter((line) => line != null).join("\r\n");
 
   return new Promise((resolve, reject) => {

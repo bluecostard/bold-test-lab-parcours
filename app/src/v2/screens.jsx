@@ -1773,8 +1773,24 @@ function PseudoCard({ user, onDone }) {
   );
 }
 
+function requestWelcome(getToken, user) {
+  const email = user?.primaryEmailAddress?.emailAddress || "";
+  if (!getToken || !email) return;
+  getToken()
+    .then((token) => {
+      if (!token) return;
+      return fetch("/api/welcome", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ email, name: readPublicPseudo(user) || "" }),
+      });
+    })
+    .catch(() => {});
+}
+
 function ClerkLogin({ navigate, pageRef, from, campaignId }) {
   const { isSignedIn, user } = useUser();
+  const { getToken } = useAuth();
   const [mode, setMode] = useState(() => (/^#\/verify/i.test(window.location.hash) ? "sign-up" : "sign-in"));
   const [forgotEmail, setForgotEmail] = useState("");
   const [needPseudo, setNeedPseudo] = useState(false);
@@ -1801,14 +1817,16 @@ function ClerkLogin({ navigate, pageRef, from, campaignId }) {
       setNeedPseudo(true);
       return;
     }
+    requestWelcome(getToken, user);
     if (from === "report-check") navigate("report-check", { campaignId }, true);
     else if (from === "report-form") navigate("report-check", { campaignId }, true);
     else if (from === "review-published") navigate("review-published", { campaignId }, true);
     else if (from === "payment") navigate("payment", {}, true);
     else if (from === "messages") navigate("messages", {}, true);
     else navigate("profile", {}, true);
-  }, [campaignId, from, isSignedIn, navigate, user]);
+  }, [campaignId, from, getToken, isSignedIn, navigate, user]);
   function afterPseudo() {
+    requestWelcome(getToken, user);
     setNeedPseudo(false);
     if (from === "report-check") navigate("report-check", { campaignId }, true);
     else if (from === "report-form") navigate("report-check", { campaignId }, true);

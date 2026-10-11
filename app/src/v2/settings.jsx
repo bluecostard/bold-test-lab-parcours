@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useClerk, useUser } from "@clerk/react";
+import { useEffect, useState } from "react";
+import { useAuth, useClerk, useUser } from "@clerk/react";
 import { readAccount, writeAccount } from "../screens/account.js";
 import { hasConfirmedAge } from "./age.js";
 import { legalPages } from "./legal.js";
@@ -33,6 +33,7 @@ function exportLocalData() {
 }
 
 const menuItems = [
+  { id: "notifications", label: "Notifications" },
   { id: "cgv", label: "Conditions générales" },
   { id: "cgu", label: "CGU" },
   { id: "donnees", label: "Confidentialité" },
@@ -65,6 +66,78 @@ function BlockedAuthorsCard() {
         ))}
       </ul>
     </div>
+  );
+}
+
+function NotificationsCard({ navigate }) {
+  const { isSignedIn, isLoaded } = useUser();
+  const { getToken } = useAuth();
+  const [prefs, setPrefs] = useState({ campaigns: true, ranking: true, closing: true });
+  const [ready, setReady] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || !getToken) return;
+    getToken()
+      .then((token) => fetch("/api/mail-prefs", { headers: token ? { Authorization: `Bearer ${token}` } : {} }))
+      .then((response) => response.json())
+      .then((payload) => {
+        if (payload.campaigns != null) setPrefs({ campaigns: payload.campaigns, ranking: payload.ranking, closing: payload.closing });
+      })
+      .catch(() => {})
+      .finally(() => setReady(true));
+  }, [getToken, isLoaded, isSignedIn]);
+
+  async function save(event) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const token = getToken ? await getToken() : "";
+      const response = await fetch("/api/mail-prefs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(prefs),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Enregistrement impossible.");
+      setPrefs({ campaigns: payload.campaigns, ranking: payload.ranking, closing: payload.closing });
+    } catch (caught) {
+      setError(caught.message || "Enregistrement impossible pour le moment.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!isLoaded) return <p className="v2-muted">Chargement…</p>;
+  if (!isSignedIn) {
+    return (
+      <>
+        <p className="v2-muted">Connectez-vous pour gérer les e-mails de campagnes, de classement et de clôture.</p>
+        <Button type="button" onClick={() => navigate("login")}>Se connecter</Button>
+      </>
+    );
+  }
+
+  return (
+    <form className="v2-stack" onSubmit={save}>
+      <p className="v2-muted">Choisissez les messages Gemelo que vous souhaitez recevoir. Le mail de bienvenue n’est envoyé qu’à l’inscription.</p>
+      <label className="v2-consent">
+        <input type="checkbox" checked={prefs.campaigns} disabled={!ready} onChange={(event) => setPrefs((current) => ({ ...current, campaigns: event.target.checked }))} />
+        Nouvelle campagne de test
+      </label>
+      <label className="v2-consent">
+        <input type="checkbox" checked={prefs.ranking} disabled={!ready} onChange={(event) => setPrefs((current) => ({ ...current, ranking: event.target.checked }))} />
+        Classement de la semaine
+      </label>
+      <label className="v2-consent">
+        <input type="checkbox" checked={prefs.closing} disabled={!ready} onChange={(event) => setPrefs((current) => ({ ...current, closing: event.target.checked }))} />
+        Dernière ligne droite (4 h)
+      </label>
+      <Button type="submit" disabled={!ready || saving}>{saving ? "Enregistrement…" : "Enregistrer"}</Button>
+      {error ? <p className="v2-helper" role="alert">{error}</p> : null}
+    </form>
   );
 }
 
@@ -129,6 +202,19 @@ export function SettingsScreen({ back, pageRef, navigate, openDrawer }) {
     setSent(false);
     setSending(false);
     setContactError("");
+  }
+
+  if (page === "notifications") {
+    return (
+      <PageShell pageRef={pageRef}>
+        <FlowHeader navigate={navigate} openDrawer={openDrawer} />
+        <main className="v2-stack v2-settings">
+          <BackButton onClick={goMenu} />
+          <h1>Notifications</h1>
+          <NotificationsCard navigate={navigate} />
+        </main>
+      </PageShell>
+    );
   }
 
   if (page === "contact") {
