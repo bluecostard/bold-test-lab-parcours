@@ -22,13 +22,6 @@ platform :ios do
     keychain_path = File.expand_path("~/Library/Keychains/fastlane_tmp_keychain-db")
     keychain_password = ENV["KEYCHAIN_PASSWORD"].to_s
 
-    Spaceship::ConnectAPI::Certificate.all.select { |certificate|
-      %w[DISTRIBUTION IOS_DISTRIBUTION].include?(certificate.certificate_type)
-    }.each do |certificate|
-      UI.important("Révocation du certificat #{certificate.id} (#{certificate.certificate_type})")
-      certificate.delete!
-    end
-
     cert(
       api_key: api_key,
       generate_apple_certs: false,
