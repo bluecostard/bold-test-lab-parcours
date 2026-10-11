@@ -60,6 +60,10 @@ export default async function handler(req, res) {
   const body = req.body || {};
   const campaign = draftCampaign(user.id, { ...booking.campaign, ...body });
   if (!campaign.name) return res.status(400).json({ error: "Indiquez le nom du projet." });
+  const linkedSocials = (campaign.socials || []).filter((item) => item?.href);
+  if (!linkedSocials.length) {
+    return res.status(400).json({ error: "Ajoutez au moins 1 réseau social avec un lien valide." });
+  }
   campaign.live = true;
   campaign.offerLabel = booking.offerLabel;
   campaign.offerRange = booking.offerRange;

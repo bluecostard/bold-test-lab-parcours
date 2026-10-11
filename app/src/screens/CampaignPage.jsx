@@ -60,7 +60,7 @@ export function CampaignPage({ onOpen }) {
   const [logo, setLogo] = useState(saved.projectLogo);
   const [screens, setScreens] = useState(saved.projectScreens);
   const [socials, setSocials] = useState(
-    saved.projectSocials.length ? saved.projectSocials : [{ ...EMPTY_SOCIAL }, { ...EMPTY_SOCIAL }],
+    saved.projectSocials.length ? saved.projectSocials : [{ ...EMPTY_SOCIAL }],
   );
   const [instructions, setInstructions] = useState(
     saved.projectInstructions.length
@@ -130,9 +130,13 @@ export function CampaignPage({ onOpen }) {
     if (!pitch.trim()) nextErrors.pitch = "La description est obligatoire.";
     if (!category) nextErrors.category = "Choisissez une catégorie.";
     if (link.trim() && !validUrl(link.trim())) nextErrors.link = "Saisissez une URL complète et valide.";
-    if (socials.length < 2) nextErrors.socials = "Ajoutez au moins 2 réseaux sociaux.";
+    const filledSocials = socials.filter((social) => social.platform || social.url.trim());
+    if (!filledSocials.length) nextErrors.socials = "Ajoutez au moins 1 réseau social avec un lien valide.";
+    if (socials.length > 6) nextErrors.socials = "Vous pouvez indiquer jusqu’à 6 réseaux.";
     if (duplicatePlatforms.length) nextErrors.socials = "Chaque réseau ne peut être choisi qu’une fois.";
     socials.forEach((social, index) => {
+      const empty = !social.platform && !social.url.trim();
+      if (empty) return;
       if (!social.platform) nextErrors[`socialPlatform-${index}`] = "Choisissez un réseau.";
       if (!validUrl(social.url)) nextErrors[`socialUrl-${index}`] = "Saisissez une URL complète et valide.";
     });
@@ -160,7 +164,9 @@ export function CampaignPage({ onOpen }) {
         category,
         projectLogo: logo,
         projectScreens: screens,
-        projectSocials: socials.map((social) => ({ platform: social.platform, url: social.url.trim() })),
+        projectSocials: socials
+          .filter((social) => social.platform && validUrl(social.url))
+          .map((social) => ({ platform: social.platform, url: social.url.trim() })),
         projectInstructions: cleanInstructions,
       });
       onOpen(12);
@@ -261,7 +267,7 @@ export function CampaignPage({ onOpen }) {
         <div className="campaign-section-heading">
           <div>
             <h2 id="campaign-socials-title">Réseaux sociaux</h2>
-            <p>Ajoutez entre 2 et 6 liens.</p>
+            <p>Au moins 1 lien valide ; les autres sont facultatifs (max. 6).</p>
           </div>
           <span>{socials.length}/6</span>
         </div>
