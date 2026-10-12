@@ -31,7 +31,7 @@ export default async function handler(req, res) {
     }
   }
 
-  if (body.jws || body.payload || body.transactionId) {
+  if (body.jws || body.transactionId) {
     const booking = await readBooking(user.id);
     if (!booking || booking.sessionId !== clean(body.bookingRef, 80)) {
       return res.status(404).json({ error: "Réservation introuvable." });
@@ -39,22 +39,37 @@ export default async function handler(req, res) {
     try {
       const paidTx = await verifyAppleTransaction({
         transactionId: clean(body.transactionId, 80),
-        // JWS StoreKit + segment payload (repli si le bridge tronque le JWS).
         jws: clean(body.jws, 200000),
-        payload: clean(body.payload, 20000),
         productId: booking.appleProductId,
       });
       const offer = offerByAppleProduct(paidTx.productId);
       if (!offer || offer.label !== booking.offerLabel || offer.price !== booking.offerPrice) {
         return res.status(400).json({ error: "Cet achat ne correspond pas à l’offre." });
       }
+      if (booking.paid && booking.appleTransactionId && booking.appleTransactionId !== paidTx.transactionId) {
+        return res.status(409).json({ error: "Cette réservation est déjà payée." });
+      }
+      if (booking.paid && booking.appleTransactionId === paidTx.transactionId) {
+        return res.status(200).json({
+          paid: true,
+          campaignId: booking.campaignId,
+          offerLabel: booking.offerLabel,
+          offerPrice: booking.offerPrice,
+          offerDate: booking.offerDate,
+        });
+      }
       const paid = await fulfillBooking(booking, { id: `iap:${paidTx.transactionId}` });
+      const locked = await saveBooking({
+        ...paid,
+        appleTransactionId: paidTx.transactionId,
+        appleEnvironment: paidTx.environment || "",
+      });
       return res.status(200).json({
         paid: true,
-        campaignId: paid.campaignId,
-        offerLabel: paid.offerLabel,
-        offerPrice: paid.offerPrice,
-        offerDate: paid.offerDate,
+        campaignId: locked.campaignId,
+        offerLabel: locked.offerLabel,
+        offerPrice: locked.offerPrice,
+        offerDate: locked.offerDate,
       });
     } catch (error) {
       console.log("iap-confirm", String(error?.message || error).slice(0, 180));
@@ -87,6 +102,7 @@ export default async function handler(req, res) {
     offerPrice: offer.price,
     offerDate,
     appleProductId: offer.appleProductId,
+    email: clean(body.email, 254).toLowerCase(),
     campaign,
     createdAt: new Date().toISOString(),
   });
