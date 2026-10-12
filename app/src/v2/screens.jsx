@@ -1438,7 +1438,8 @@ function ProfileBody({ navigate, pageRef, openDrawer, signedIn, name, avatar, si
   const [pseudoBusy, setPseudoBusy] = useState(false);
   const [editingPseudo, setEditingPseudo] = useState(!name);
   const profile = readProfile();
-  const projectName = profile.projectName || "Aucun projet configuré";
+  const hasProject = Boolean(profile.projectName?.trim());
+  const projectName = hasProject ? profile.projectName : "Aucun projet configuré";
   const reviews = Object.entries(readV2State().publishedReviews);
   const { me } = useRanking(getToken || null);
   const avis = me?.tested ?? reviews.length;
@@ -1532,7 +1533,7 @@ function ProfileBody({ navigate, pageRef, openDrawer, signedIn, name, avatar, si
           <SectionTitle
             icon="◇"
             title="Mon projet"
-            action={profile.projectName ? <span className="v2-wait-chip">{inTop ? "Top 10" : "En attente du top 10"}</span> : null}
+            action={hasProject ? <span className="v2-wait-chip">{inTop ? "Top 10" : "En attente du top 10"}</span> : null}
           />
           <div className="v2-profile-project">
             {profile.projectLogo ? <img className="v2-profile-project-logo" src={profile.projectLogo} alt={`Logo ${projectName}`} /> : <span className="v2-logo-placeholder" aria-hidden="true">◇</span>}
@@ -1541,9 +1542,12 @@ function ProfileBody({ navigate, pageRef, openDrawer, signedIn, name, avatar, si
               <p>{profile.projectPitch || "Ajoutez votre projet pour le présenter à la communauté."}</p>
             </div>
           </div>
-          <button type="button" className="v2-ghost-chip" onClick={() => navigate("entrepreneur")}>✎ Modifier mon projet</button>
+          {hasProject ? (
+            <button type="button" className="v2-ghost-chip" onClick={() => navigate("entrepreneur")}>✎ Modifier mon projet</button>
+          ) : (
+            <Button type="button" onClick={() => navigate("entrepreneur")}>Ajouter mon projet <span aria-hidden="true">→</span></Button>
+          )}
           <p className="v2-helper v2-helper--left">Votre projet sera présenté dans la Communauté tant que vous serez dans le top 10.</p>
-          <Button type="button" onClick={() => navigate("entrepreneur")}>Ajouter ou modifier mon projet <span aria-hidden="true">→</span></Button>
         </Card>
         <BookingSlotCard />
         <button className="v2-service-entry" type="button" onClick={() => navigate("offer")}>
