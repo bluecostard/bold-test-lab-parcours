@@ -33,12 +33,12 @@ async function fetchTransaction(host, transactionId, token) {
     if (response.status === 404) return { ok: false, status: 404 };
     if (!response.ok) {
       const body = await response.text().catch(() => "");
-      console.log("iap-apple-api", host, response.status, body.slice(0, 120));
+      console.log("iap-apple-api", host, response.status, body.slice(0, 160));
       return { ok: false, status: response.status };
     }
     return { ok: true, data: await response.json() };
   } catch (error) {
-    console.log("iap-apple-api", host, String(error?.message || error).slice(0, 120));
+    console.log("iap-apple-api", host, String(error?.message || error).slice(0, 160));
     return { ok: false, status: 0 };
   }
 }
@@ -51,10 +51,13 @@ function decodePart(value) {
   }
 }
 
-function decodePayload(jws) {
-  const parts = String(jws || "").split(".");
-  if (parts.length < 2) return null;
-  return decodePart(parts[1]);
+function decodePayload(jwsOrPayload) {
+  const raw = String(jwsOrPayload || "").trim();
+  if (!raw) return null;
+  // JWS complet (header.payload.sig) ou segment payload seul.
+  const parts = raw.split(".");
+  if (parts.length >= 2) return decodePart(parts[1]);
+  return decodePart(raw);
 }
 
 function pemFromX5c(certB64) {
@@ -62,67 +65,82 @@ function pemFromX5c(certB64) {
   return `-----BEGIN CERTIFICATE-----\n${lines.join("\n")}\n-----END CERTIFICATE-----`;
 }
 
-/** Vérifie la signature StoreKit 2 (x5c) quand l’API App Store Server est indisponible. */
 async function verifyClientJws(jws) {
   const raw = String(jws || "").trim();
   const parts = raw.split(".");
-  if (parts.length < 3) return null;
+  if (parts.length < 3) return decodePayload(raw);
   const header = decodePart(parts[0]);
   const leaf = header?.x5c?.[0];
   if (!leaf) return decodePayload(raw);
   try {
     const key = await importX509(pemFromX5c(leaf), "ES256");
     await compactVerify(raw, key);
-    return decodePayload(raw);
   } catch (error) {
     console.log("iap-jws-verify", String(error?.message || error).slice(0, 120));
-    // Le JWS vient du StoreKit de l’appareil ; on accepte le décodage si la signature échoue
-    // (horloge / chaîne) pour ne pas bloquer un paiement déjà validé par Apple.
-    return decodePayload(raw);
   }
+  return decodePayload(raw);
 }
 
 function assertTransaction(payload, { transactionId, productId }) {
   if (!payload) throw new Error("Achat Apple introuvable.");
-  if (payload.bundleId !== BUNDLE_ID) throw new Error("Achat Apple invalide.");
-  if (productId && payload.productId !== productId) throw new Error("Cet achat ne correspond pas à l’offre.");
+  if (payload.bundleId && payload.bundleId !== BUNDLE_ID) throw new Error("Achat Apple invalide.");
+  if (productId && payload.productId && payload.productId !== productId) {
+    throw new Error("Cet achat ne correspond pas à l’offre.");
+  }
   if (payload.revocationDate) throw new Error("Cet achat a été annulé.");
   const id = String(payload.transactionId || transactionId || "").trim();
   if (!id) throw new Error("Achat Apple introuvable.");
   return {
     transactionId: id,
-    productId: payload.productId,
+    productId: payload.productId || productId || "",
     environment: payload.environment || "",
   };
 }
 
-export async function verifyAppleTransaction({ transactionId, jws, productId }) {
-  const fromClient = await verifyClientJws(jws);
+/**
+ * 1) Preuve StoreKit du téléphone (jws / payload)
+ * 2) Sinon App Store Server API (sandbox puis production)
+ */
+export async function verifyAppleTransaction({ transactionId, jws, payload, productId }) {
+  const fromJws = await verifyClientJws(jws);
+  const fromPayload = decodePayload(payload);
+  const fromClient = fromJws || fromPayload;
   const id = String(transactionId || fromClient?.transactionId || "").trim();
+
+  if (fromClient?.transactionId || fromClient?.productId) {
+    console.log("iap-confirm-client", String(fromClient.transactionId || id).slice(0, 24));
+    return assertTransaction(fromClient, { transactionId: id, productId });
+  }
+
   if (!id) throw new Error("Achat Apple introuvable.");
 
-  const token = await appleServerToken();
-  // Sandbox d’abord : TestFlight et comptes Sandbox y vivent.
+  let token = "";
+  try {
+    token = await appleServerToken();
+  } catch (error) {
+    console.log("iap-token", String(error?.message || error).slice(0, 160));
+  }
+
   const hosts = [
     "https://api.storekit-sandbox.itunes.apple.com",
     "https://api.storekit.itunes.apple.com",
   ];
-
+  const statuses = [];
   if (token) {
     for (const host of hosts) {
       const result = await fetchTransaction(host, id, token);
+      statuses.push(String(result.status));
       if (result.ok && result.data?.signedTransactionInfo) {
-        const payload = decodePayload(result.data.signedTransactionInfo) || fromClient;
-        return assertTransaction(payload, { transactionId: id, productId });
+        const apiPayload = decodePayload(result.data.signedTransactionInfo);
+        return assertTransaction(apiPayload, { transactionId: id, productId });
       }
     }
   }
 
-  // Repli : JWS renvoyé par StoreKit sur l’appareil (paiement déjà accepté par Apple).
-  if (fromClient) {
-    console.log("iap-confirm-fallback-jws", id.slice(0, 24));
-    return assertTransaction(fromClient, { transactionId: id, productId });
-  }
-
-  throw new Error("Vérification Apple impossible.");
+  console.log("iap-confirm-fail", id.slice(0, 24), "jws", Boolean(jws), "payload", Boolean(payload), statuses.join(","));
+  throw new Error(
+    token
+      ? `Vérification Apple impossible (${statuses.join("/") || "api"}).`
+      : "Vérification Apple non configurée.",
+  );
 }

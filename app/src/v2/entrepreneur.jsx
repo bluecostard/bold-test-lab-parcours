@@ -2,7 +2,7 @@ import { useAuth, useUser } from "@clerk/react";
 import { useEffect, useRef, useState } from "react";
 import { readAccount, writeAccount } from "../screens/account.js";
 import { slotAvailable } from "../../lib/availability.js";
-import { apply, addDays, demoOfferDays, formattedDate, localToday, slotEnded } from "./booking.js";
+import { apply, addDays, demoOfferDays, formattedDate, isIsoDate, localToday, slotEnded } from "./booking.js";
 import { useCampaignCatalog } from "./catalog.js";
 import { confirmAppleCheckout, confirmCheckout, paymentMode, startAppleCheckout, startCheckout } from "./checkoutApi.js";
 import { finishAppleProduct, isNativeIos, purchaseAppleProduct } from "./nativePay.js";
@@ -312,20 +312,22 @@ export function OfferScreen({ navigate, back, pageRef }) {
     available: slotAvailable(day.value, offerLabel, catalog, ignoreId, today),
   }));
   const firstOpen = days.find((day) => day.available)?.value || "";
-  const savedDate = account.offerDate && account.offerDate >= today ? account.offerDate : "";
+  const savedDate = isIsoDate(account.offerDate) && account.offerDate >= today ? account.offerDate : "";
   const [date, setDate] = useState(savedDate || firstOpen);
   const [pickOther, setPickOther] = useState(() => Boolean(savedDate && !days.some((day) => day.value === savedDate)));
-  const customSelected = pickOther && date && !days.some((day) => day.value === date);
+  const customSelected = pickOther && isIsoDate(date) && !days.some((day) => day.value === date);
   const chosenAvailable = slotAvailable(date, offerLabel, catalog, ignoreId, today);
+  const dateInputValue = isIsoDate(date) ? date : "";
   function choose(index) {
     const offer = offers[index];
     setSelectedIndex(index);
     apply({ offer });
   }
-  function chooseDate(value) {
+  function chooseDate(value, fromList = false) {
+    if (!isIsoDate(value)) return;
     setDate(value);
     apply({ date: value });
-    if (days.some((day) => day.value === value)) setPickOther(false);
+    if (fromList) setPickOther(false);
   }
   return (
     <PageShell pageRef={pageRef}>
@@ -343,7 +345,7 @@ export function OfferScreen({ navigate, back, pageRef }) {
                 aria-checked={!customSelected && date === day.value}
                 disabled={!day.available}
                 className={!customSelected && date === day.value ? "is-selected" : ""}
-                onClick={() => chooseDate(day.value)}
+                onClick={() => chooseDate(day.value, true)}
               >
                 <span>{day.label}</span>
                 <em className={day.available ? "is-open" : "is-full"}>{day.available ? "Disponible" : "Complet"}</em>
@@ -353,9 +355,19 @@ export function OfferScreen({ navigate, back, pageRef }) {
           {pickOther ? (
             <>
               <Field label="Indiquez le jour souhaité">
-                <input type="date" min={today} value={customSelected ? date : ""} onChange={(event) => { setPickOther(true); chooseDate(event.target.value); }} />
+                <input
+                  type="date"
+                  min={today}
+                  value={dateInputValue}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    if (!isIsoDate(next)) return;
+                    setPickOther(true);
+                    chooseDate(next);
+                  }}
+                />
               </Field>
-              {customSelected && date ? (
+              {customSelected ? (
                 <div className={`v2-picked-day${chosenAvailable ? " is-open" : " is-full"}`}>
                   <span>{formattedDate(date)}</span>
                   <em className={chosenAvailable ? "is-open" : "is-full"}>{chosenAvailable ? "Disponible" : "Complet"}</em>
@@ -486,6 +498,7 @@ function PaymentBody({ navigate, back, pageRef, getToken, user }) {
           productId: prepared.productId,
           transactionId: purchase.transactionId,
           jws: purchase.jws,
+          payload: purchase.payload,
         });
         if (!result.paid) throw new Error("Achat Apple introuvable.");
         if (purchase.transactionId) await finishAppleProduct(purchase.transactionId);

@@ -9,7 +9,8 @@ import { matchOffer, offerByAppleProduct } from "../lib/offers.js";
 import { appleIapConfigured, verifyAppleTransaction } from "../lib/appleIap.js";
 
 function clean(value, limit = 240) {
-  return typeof value === "string" ? value.trim().slice(0, limit) : "";
+  if (value == null) return "";
+  return String(value).trim().slice(0, limit);
 }
 
 export default async function handler(req, res) {
@@ -21,9 +22,16 @@ export default async function handler(req, res) {
   if (!appleIapConfigured()) return res.status(503).json({ error: "Achats Apple indisponibles pour le moment." });
   const user = await readClerkUser(req);
   if (!user) return res.status(401).json({ error: "Connectez-vous pour payer." });
-  const body = req.body || {};
+  let body = req.body || {};
+  if (typeof body === "string") {
+    try {
+      body = JSON.parse(body);
+    } catch {
+      body = {};
+    }
+  }
 
-  if (body.jws || body.transactionId) {
+  if (body.jws || body.payload || body.transactionId) {
     const booking = await readBooking(user.id);
     if (!booking || booking.sessionId !== clean(body.bookingRef, 80)) {
       return res.status(404).json({ error: "Réservation introuvable." });
@@ -31,8 +39,9 @@ export default async function handler(req, res) {
     try {
       const paidTx = await verifyAppleTransaction({
         transactionId: clean(body.transactionId, 80),
-        // Les JWS StoreKit dépassent souvent 8 Ko (chaîne x5c) — ne pas tronquer.
-        jws: clean(body.jws, 100000),
+        // JWS StoreKit + segment payload (repli si le bridge tronque le JWS).
+        jws: clean(body.jws, 200000),
+        payload: clean(body.payload, 20000),
         productId: booking.appleProductId,
       });
       const offer = offerByAppleProduct(paidTx.productId);

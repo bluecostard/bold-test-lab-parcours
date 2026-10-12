@@ -58,11 +58,7 @@ public class GemeloIapPlugin: CAPPlugin, CAPBridgedPlugin {
 
         switch result {
         case .success(let verification):
-          let transaction = try self.checked(verification)
-          call.resolve([
-            "jws": verification.jwsRepresentation,
-            "transactionId": String(transaction.id),
-          ])
+          call.resolve(try self.purchaseDict(verification))
         case .userCancelled:
           call.reject("Paiement annulé.")
         case .pending:
@@ -86,6 +82,19 @@ public class GemeloIapPlugin: CAPPlugin, CAPBridgedPlugin {
     }
   }
 
+  private func purchaseDict(_ verification: VerificationResult<Transaction>) throws -> [String: String] {
+    let transaction = try checked(verification)
+    let jws = verification.jwsRepresentation
+    let parts = jws.split(separator: ".", omittingEmptySubsequences: false)
+    let payload = parts.count >= 2 ? String(parts[1]) : ""
+    return [
+      "jws": jws,
+      "payload": payload,
+      "transactionId": String(transaction.id),
+      "productId": transaction.productID,
+    ]
+  }
+
   @MainActor
   private func pendingPurchase(productId: String) async -> [String: String]? {
     let deadline = Date().addingTimeInterval(2)
@@ -93,10 +102,7 @@ public class GemeloIapPlugin: CAPPlugin, CAPBridgedPlugin {
       if Date() > deadline { break }
       guard let transaction = try? checked(update) else { continue }
       if transaction.productID == productId {
-        return [
-          "jws": update.jwsRepresentation,
-          "transactionId": String(transaction.id),
-        ]
+        return try? purchaseDict(update)
       }
     }
     return nil

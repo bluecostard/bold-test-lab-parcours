@@ -79,14 +79,22 @@ export function localToday() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
+/** Date calendrier YYYY-MM-DD uniquement (évite RangeError / crash input date). */
+export function isIsoDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return false;
+  const parsed = new Date(`${value}T12:00:00`);
+  return !Number.isNaN(parsed.getTime());
+}
+
 export function addDays(value, days) {
+  if (!isIsoDate(value)) return "";
   const date = new Date(`${value}T12:00:00`);
   date.setDate(date.getDate() + days);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 export function formattedDate(value) {
-  if (!value) return "Jour à choisir";
+  if (!isIsoDate(value)) return "Jour à choisir";
   const raw = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date(`${value}T12:00:00`));
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
@@ -107,7 +115,7 @@ function rangeStartHour(offerRange, offerLabel) {
 }
 
 export function slotStart(offerDate, offerRange, offerLabel) {
-  if (!offerDate) return null;
+  if (!isIsoDate(offerDate)) return null;
   const hour = rangeStartHour(offerRange, offerLabel);
   const start = new Date(`${offerDate}T${String(hour).padStart(2, "0")}:00:00`);
   return Number.isNaN(start.getTime()) ? null : start;
@@ -138,7 +146,10 @@ export function apply(patch, current = readAccount()) {
     next.offerRange = patch.offer.range;
     next.offerPrice = patch.offer.price;
   }
-  if (patch.date) next.offerDate = patch.date;
+  if (patch.date !== undefined) {
+    if (!patch.date) next.offerDate = "";
+    else if (isIsoDate(patch.date)) next.offerDate = patch.date;
+  }
   const priceDelta = (Number(next.offerPrice) || 0) - (Number(current.offerPrice) || 0);
   writeAccount(next);
   return { account: next, priceDelta };

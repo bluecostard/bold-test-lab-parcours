@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { SignIn, SignUp, useAuth, useClerk, useSignIn, useUser } from "@clerk/react";
 import { slotAvailable } from "../../lib/availability.js";
-import { apply, campaignDeadlineLabel, campaignPeriodLabel, campaignRemainingMsFor, campaignTimerParts, campaignTimerProgress, canManageBooking, demoOfferDays, formattedDate, localToday } from "./booking.js";
+import { apply, campaignDeadlineLabel, campaignPeriodLabel, campaignRemainingMsFor, campaignTimerParts, campaignTimerProgress, canManageBooking, demoOfferDays, formattedDate, isIsoDate, localToday } from "./booking.js";
 import { useCampaignCatalog } from "./catalog.js";
 import { campaigns, formatOfferPrice, formatStoredOfferPrice, offers, ranking, testerComments, testerRail } from "./data.js";
 import { isNativeIos } from "./nativePay.js";
@@ -1283,12 +1283,13 @@ function BookingSlotCard() {
     ...day,
     available: slotAvailable(day.value, offerLabel, catalog, ignoreId, today),
   }));
-  const [pickOther, setPickOther] = useState(() => Boolean(account.offerDate && !days.some((day) => day.value === account.offerDate)));
+  const [pickOther, setPickOther] = useState(() => Boolean(isIsoDate(account.offerDate) && !days.some((day) => day.value === account.offerDate)));
   if (!hasPaidCampaign()) return null;
   const open = canManageBooking(account);
   const selectedOfferIndex = offers.findIndex((offer) => offer.label === account.offerLabel);
-  const customSelected = pickOther && account.offerDate && !days.some((day) => day.value === account.offerDate);
+  const customSelected = pickOther && isIsoDate(account.offerDate) && !days.some((day) => day.value === account.offerDate);
   const chosenAvailable = slotAvailable(account.offerDate, offerLabel, catalog, ignoreId, today);
+  const dateInputValue = isIsoDate(account.offerDate) ? account.offerDate : "";
 
   function toggle(next) {
     setPanel((current) => (current === next ? "" : next));
@@ -1302,6 +1303,7 @@ function BookingSlotCard() {
   }
 
   function changeDay(value) {
+    if (!isIsoDate(value)) return;
     const { account: next } = apply({ date: value });
     setAccount(next);
   }
@@ -1374,14 +1376,16 @@ function BookingSlotCard() {
                     <input
                       type="date"
                       min={today}
-                      value={customSelected ? account.offerDate : ""}
+                      value={dateInputValue}
                       onChange={(event) => {
+                        const next = event.target.value;
+                        if (!isIsoDate(next)) return;
                         setPickOther(true);
-                        changeDay(event.target.value);
+                        changeDay(next);
                       }}
                     />
                   </Field>
-                  {customSelected && account.offerDate ? (
+                  {customSelected ? (
                     <div className={`v2-picked-day${chosenAvailable ? " is-open" : " is-full"}`}>
                       <span>{formattedDate(account.offerDate)}</span>
                       <em className={chosenAvailable ? "is-open" : "is-full"}>{chosenAvailable ? "Disponible" : "Complet"}</em>

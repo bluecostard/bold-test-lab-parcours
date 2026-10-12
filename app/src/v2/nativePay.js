@@ -55,14 +55,30 @@ export async function pingAppleIap() {
   }
 }
 
+function normalizePurchase(raw, fallbackProductId = "") {
+  const jws = String(raw?.jws || raw?.signedTransactionInfo || "");
+  let payload = String(raw?.payload || "");
+  if (!payload && jws.includes(".")) payload = jws.split(".")[1] || "";
+  const transactionId = String(raw?.transactionId || "");
+  if (!transactionId) throw new Error("Achat Apple sans identifiant de transaction.");
+  if (!jws && !payload) throw new Error("Achat Apple sans preuve StoreKit. Réinstallez TestFlight.");
+  return {
+    transactionId,
+    jws,
+    payload,
+    productId: String(raw?.productId || fallbackProductId || ""),
+  };
+}
+
 export async function purchaseAppleProduct(productId) {
   try {
     const iap = nativeIap();
-    return await withTimeout(
+    const raw = await withTimeout(
       iap.purchase(productId),
       100000,
       "La fenêtre Apple Pay / App Store ne s’est pas ouverte. Compte Sandbox : Réglages → App Store.",
     );
+    return normalizePurchase(raw, productId);
   } catch (error) {
     throw new Error(pluginMessage(error));
   }
