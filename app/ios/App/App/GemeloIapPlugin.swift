@@ -13,7 +13,7 @@ public class GemeloIapPlugin: CAPPlugin, CAPBridgedPlugin {
   ]
 
   @objc func ping(_ call: CAPPluginCall) {
-    call.resolve(["ok": true, "plugin": "GemeloIap"])
+    call.resolve(["ok": true, "plugin": "GemeloIap", "registered": true])
   }
 
   @objc func purchase(_ call: CAPPluginCall) {
@@ -24,29 +24,32 @@ public class GemeloIapPlugin: CAPPlugin, CAPBridgedPlugin {
     }
     Task { @MainActor in
       do {
+        // Nettoyer d’éventuelles transactions bloquantes (max 3 s).
+        await self.drainUnfinished(seconds: 3)
+
         let products: [Product]
         do {
-          products = try await self.withTimeout(seconds: 20) {
+          products = try await self.withTimeout(seconds: 25) {
             try await Product.products(for: [productId])
           }
         } catch {
-          call.reject("Catalogue App Store inaccessible. Vérifiez le réseau, puis réessayez.")
+          call.reject("Catalogue App Store inaccessible pour \(productId). Vérifiez le réseau / Sandbox.")
           return
         }
         guard let product = products.first else {
-          call.reject("Cette offre n’est pas encore ouverte dans l’App Store (produit \(productId)).")
+          call.reject("Offre App Store introuvable (\(productId)). Vérifiez App Store Connect.")
           return
         }
 
+        // purchase() simple : confirmIn: peut rester bloqué sans feuille visible.
         let result: Product.PurchaseResult
         do {
-          result = try await self.withTimeout(seconds: 120) {
-            try await self.purchaseProduct(product)
+          result = try await self.withTimeout(seconds: 90) {
+            try await product.purchase()
           }
         } catch {
-          call.reject(error.localizedDescription.isEmpty
-            ? "La fenêtre App Store ne s’est pas ouverte. Réessayez."
-            : error.localizedDescription)
+          let message = error.localizedDescription
+          call.reject(message.isEmpty ? "Délai App Store dépassé." : message)
           return
         }
 
@@ -73,46 +76,34 @@ public class GemeloIapPlugin: CAPPlugin, CAPBridgedPlugin {
   @objc func finish(_ call: CAPPluginCall) {
     let expected = call.getString("transactionId") ?? ""
     Task { @MainActor in
-      if expected.isEmpty {
-        call.resolve()
-        return
-      }
-      // Ne pas bloquer indéfiniment sur Transaction.unfinished
-      let deadline = Date().addingTimeInterval(8)
-      for await update in Transaction.unfinished {
-        if Date() > deadline { break }
-        if let transaction = try? self.checked(update), String(transaction.id) == expected {
-          await transaction.finish()
-          break
-        }
+      if !expected.isEmpty {
+        await self.finishTransaction(id: expected, seconds: 6)
       }
       call.resolve()
     }
   }
 
   @MainActor
-  private func purchaseProduct(_ product: Product) async throws -> Product.PurchaseResult {
-    if #available(iOS 17.0, *) {
-      if let scene = self.activeWindowScene() {
-        return try await product.purchase(confirmIn: scene)
+  private func drainUnfinished(seconds: Double) async {
+    let deadline = Date().addingTimeInterval(seconds)
+    for await update in Transaction.unfinished {
+      if Date() > deadline { break }
+      if let transaction = try? checked(update) {
+        await transaction.finish()
       }
     }
-    return try await product.purchase()
   }
 
   @MainActor
-  private func activeWindowScene() -> UIWindowScene? {
-    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-    if let active = scenes.first(where: { $0.activationState == .foregroundActive }) {
-      return active
+  private func finishTransaction(id: String, seconds: Double) async {
+    let deadline = Date().addingTimeInterval(seconds)
+    for await update in Transaction.unfinished {
+      if Date() > deadline { break }
+      if let transaction = try? checked(update), String(transaction.id) == id {
+        await transaction.finish()
+        break
+      }
     }
-    if let bridgeScene = self.bridge?.viewController?.view.window?.windowScene {
-      return bridgeScene
-    }
-    if let keyScene = scenes.flatMap({ $0.windows }).first(where: { $0.isKeyWindow })?.windowScene {
-      return keyScene
-    }
-    return scenes.first
   }
 
   private func withTimeout<T>(seconds: Double, operation: @escaping () async throws -> T) async throws -> T {
@@ -126,9 +117,8 @@ public class GemeloIapPlugin: CAPPlugin, CAPBridgedPlugin {
           userInfo: [NSLocalizedDescriptionKey: "Délai App Store dépassé."]
         )
       }
-      let value = try await group.next()!
-      group.cancelAll()
-      return value
+      defer { group.cancelAll() }
+      return try await group.next()!
     }
   }
 

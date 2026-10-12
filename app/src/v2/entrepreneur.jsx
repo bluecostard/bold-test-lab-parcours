@@ -5,7 +5,7 @@ import { slotAvailable } from "../../lib/availability.js";
 import { apply, addDays, demoOfferDays, formattedDate, localToday, slotEnded } from "./booking.js";
 import { useCampaignCatalog } from "./catalog.js";
 import { confirmAppleCheckout, confirmCheckout, paymentMode, startAppleCheckout, startCheckout } from "./checkoutApi.js";
-import { finishAppleProduct, isNativeIos, purchaseAppleProduct } from "./nativePay.js";
+import { finishAppleProduct, isNativeIos, pingAppleIap, purchaseAppleProduct } from "./nativePay.js";
 import { formatOfferPrice, formatStoredOfferPrice, offers } from "./data.js";
 import {
   forgetBlobFile,
@@ -474,10 +474,12 @@ function PaymentBody({ navigate, back, pageRef, getToken, user }) {
         email: user.primaryEmailAddress?.emailAddress || "",
       };
       if (isNativeIos()) {
+        setStatus("Vérification du module App Store…");
+        await pingAppleIap();
         setStatus("Réservation du créneau…");
         const prepared = await startAppleCheckout(getToken, common);
         if (!prepared.productId) throw new Error("Offre Apple introuvable.");
-        setStatus("Ouverture de l’App Store…");
+        setStatus(`Ouverture App Store (${prepared.productId})…`);
         const purchase = await purchaseAppleProduct(prepared.productId);
         setStatus("Confirmation du paiement…");
         const result = await confirmAppleCheckout(getToken, {

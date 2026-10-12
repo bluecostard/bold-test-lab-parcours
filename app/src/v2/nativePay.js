@@ -19,23 +19,29 @@ function withTimeout(promise, ms, message) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+export async function pingAppleIap() {
+  const GemeloIap = await iapPlugin();
+  if (!GemeloIap?.ping) {
+    throw new Error("Module App Store absent. Installez la dernière build TestFlight.");
+  }
+  return withTimeout(
+    GemeloIap.ping(),
+    8000,
+    "Module App Store muet. Installez la dernière build TestFlight (plugin IAP).",
+  );
+}
+
 export async function purchaseAppleProduct(productId) {
   try {
+    await pingAppleIap();
     const GemeloIap = await iapPlugin();
     if (!GemeloIap?.purchase) {
-      throw new Error("Achats Apple indisponibles dans cette version. Mettez Gemelo à jour via TestFlight.");
-    }
-    if (typeof GemeloIap.ping === "function") {
-      try {
-        await withTimeout(GemeloIap.ping(), 5000, "Plugin App Store muet.");
-      } catch {
-        throw new Error("Le module App Store n’est pas chargé. Installez la dernière build TestFlight.");
-      }
+      throw new Error("Achats Apple indisponibles. Mettez Gemelo à jour via TestFlight.");
     }
     return await withTimeout(
       GemeloIap.purchase({ productId }),
-      130000,
-      "La fenêtre App Store ne s’est pas ouverte. Compte Sandbox : Réglages → App Store → Sandbox. Puis rouvrez Gemelo.",
+      100000,
+      "La fenêtre App Store ne s’est pas ouverte. Compte Sandbox : Réglages → App Store.",
     );
   } catch (error) {
     throw new Error(pluginMessage(error));
