@@ -85,6 +85,23 @@ export async function upsertSubscriber(userId, patch) {
   return data.subscribers[userId];
 }
 
+/** Retire l’abonné et ses marques dans les cartes de destinataires. */
+export async function removeSubscriber(userId) {
+  if (!userId) return false;
+  const data = await readJson();
+  const had = Boolean(data.subscribers[userId]);
+  delete data.subscribers[userId];
+  for (const key of ["campaignRecipients", "rankingRecipients", "closingRecipients"]) {
+    const map = data[key];
+    if (!map || typeof map !== "object") continue;
+    for (const bucket of Object.values(map)) {
+      if (bucket && typeof bucket === "object") delete bucket[userId];
+    }
+  }
+  await writeJson(data);
+  return had;
+}
+
 export async function findSubscriberByToken(token) {
   const data = await readJson();
   for (const [userId, entry] of Object.entries(data.subscribers)) {

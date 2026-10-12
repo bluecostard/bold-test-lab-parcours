@@ -1,7 +1,9 @@
+import { purgeUserAccount } from "../lib/accountPurge.js";
 import { readClerkUser } from "../lib/clerkAuth.js";
 import { readBooking } from "../lib/bookingStore.js";
 import { readCampaign } from "../lib/campaignStore.js";
 import { mapInstruction, mapSocials } from "../lib/campaignDraft.js";
+import { rateLimited, rateLimitReply } from "../lib/rateLimit.js";
 
 function clean(value, limit = 240) {
   return typeof value === "string" ? value.trim().slice(0, limit) : "";
@@ -16,10 +18,22 @@ function linkHref(links, label) {
 /** Compte entrepreneur : réservation payée + campagne pour resync après réinstall. */
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
-  if (req.method !== "GET") return res.status(405).json({ error: "Méthode refusée." });
 
   const user = await readClerkUser(req);
   if (!user) return res.status(401).json({ error: "Connectez-vous pour continuer." });
+
+  if (req.method === "DELETE") {
+    if (rateLimited(req, "account-delete", 5, 60 * 60 * 1000)) return rateLimitReply(res);
+    try {
+      const result = await purgeUserAccount(user.id);
+      return res.status(200).json(result);
+    } catch (error) {
+      console.log("account-delete", String(error?.message || error).slice(0, 180));
+      return res.status(500).json({ error: "Suppression des données impossible. Réessayez." });
+    }
+  }
+
+  if (req.method !== "GET") return res.status(405).json({ error: "Méthode refusée." });
 
   try {
     const booking = await readBooking(user.id);

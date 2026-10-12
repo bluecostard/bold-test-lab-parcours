@@ -145,6 +145,7 @@ function NotificationsCard({ navigate }) {
 
 function DeleteAccountCard({ navigate }) {
   const { user, isSignedIn, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const { signOut } = useClerk();
   const [step, setStep] = useState("idle");
   const [error, setError] = useState("");
@@ -153,10 +154,18 @@ function DeleteAccountCard({ navigate }) {
     setError("");
     setStep("working");
     try {
+      const token = await getToken();
+      if (!token) throw new Error("Reconnectez-vous pour supprimer le compte.");
+      const response = await fetch("/api/account", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Suppression des données serveur impossible.");
       if (user) await user.delete();
     } catch (caught) {
       setStep("confirm");
-      setError(caught?.errors?.[0]?.longMessage || caught?.message || "La suppression du compte Clerk a échoué.");
+      setError(caught?.errors?.[0]?.longMessage || caught?.message || "La suppression du compte a échoué.");
       return;
     }
     clearGemeloStorage();
@@ -172,7 +181,7 @@ function DeleteAccountCard({ navigate }) {
   return (
     <div className="v2-delete-account">
       <h2>Supprimer mon compte</h2>
-      <p>Efface les données locales de cet appareil et ferme le compte Clerk. Cette action est définitive. La même démarche est décrite sur <a className="v2-inline-link" href="/supprimer/">gemelo.online/supprimer/</a>.</p>
+      <p>Efface vos données Gemelo sur le serveur (campagnes, avis, messages, médias, notifications), les données locales de cet appareil, puis ferme le compte Clerk. Cette action est définitive. Détail : <a className="v2-inline-link" href="/supprimer/">gemelo.online/supprimer/</a>.</p>
       {step === "idle" ? (
         <Button type="button" variant="outline" onClick={() => setStep("confirm")}>Supprimer mon compte</Button>
       ) : null}
