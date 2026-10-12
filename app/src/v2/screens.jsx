@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { SignIn, SignUp, useAuth, useClerk, useSignIn, useUser } from "@clerk/react";
 import { slotAvailable } from "../../lib/availability.js";
-import { apply, campaignDeadlineLabel, campaignPeriodLabel, campaignRemainingMsFor, campaignTimerParts, campaignTimerProgress, canManageBooking, demoOfferDays, formattedDate, isIsoDate, localToday } from "./booking.js";
+import { apply, campaignDeadlineLabel, campaignPeriodLabel, campaignRemainingMsFor, campaignTimerParts, campaignTimerProgress, canManageBooking, demoOfferDays, formattedDate, isCampaignSlotActive, isIsoDate, localToday } from "./booking.js";
 import { useCampaignCatalog } from "./catalog.js";
 import { campaigns, formatOfferPrice, formatStoredOfferPrice, offers, ranking, testerComments, testerRail } from "./data.js";
 import { isNativeIos } from "./nativePay.js";
@@ -340,8 +340,14 @@ function FeaturedCampaignCard({ campaign, navigate }) {
 
 export function DiscoverScreen({ navigate, pageRef, openDrawer }) {
   const catalog = useCampaignCatalog();
-  const featured = catalog.find((item) => item.id === "bed-hop" && item.live !== false) || catalog.find((item) => item.live !== false);
-  const extraLive = catalog.filter((item) => item.live !== false && item.id !== featured?.id);
+  const seedIds = new Set(campaigns.map((item) => item.id));
+  const apiLive = catalog.filter((item) => !seedIds.has(item.id) && item.live !== false);
+  // Accueil : seed Bed Hop seulement si aucune campagne API live ; sinon créneaux en cours uniquement.
+  const homePool = apiLive.length
+    ? apiLive.filter((item) => isCampaignSlotActive(item))
+    : catalog.filter((item) => seedIds.has(item.id) && item.live !== false);
+  const featured = homePool[0] || null;
+  const extraLive = homePool.slice(1);
   const reviewSource = featured;
   const [liveReviews, setLiveReviews] = useState([]);
   useEffect(() => {

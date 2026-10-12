@@ -133,6 +133,15 @@ export function slotEnded(account, now = Date.now()) {
   return now >= start.getTime() + slotDurationHours(account) * 60 * 60 * 1000;
 }
 
+/** Créneau payé en cours (après le début, avant la fin). Sans offerDate : pas « en cours ». */
+export function isCampaignSlotActive(campaign, now = Date.now()) {
+  if (!campaign?.offerDate) return false;
+  const start = slotStart(campaign.offerDate, campaign.offerRange, campaign.offerLabel);
+  if (!start) return false;
+  if (now < start.getTime()) return false;
+  return campaignRemainingMsFor(campaign, now) > 0;
+}
+
 export function canManageBooking(account, now = new Date()) {
   const start = slotStart(account?.offerDate, account?.offerRange, account?.offerLabel);
   if (!start) return false;
