@@ -22,10 +22,41 @@ function fileKind(file, kind) {
   return "image";
 }
 
-function fileFromDataUrl(value, name) {
-  return fetch(value).then((response) => response.blob()).then((blob) => (
-    new File([blob], name || "fichier", { type: blob.type || "application/octet-stream" })
-  ));
+async function fileFromUrl(value, name, ms = 20000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    const response = await fetch(value, { signal: controller.signal });
+    if (!response.ok) throw new Error("Lecture de l’image impossible.");
+    const blob = await response.blob();
+    return new File([blob], name || "fichier", { type: blob.type || "application/octet-stream" });
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("Envoi d’une image trop lent. Réessayez.");
+    throw new Error("Une image n’est plus disponible. Réajoutez-la puis réessayez.");
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Copie immédiate des File (iOS invalide la FileList après le premier await). */
+export async function snapshotFiles(fileList) {
+  const files = Array.from(fileList || []);
+  return Promise.all(files.map(async (file, index) => {
+    const buffer = await file.arrayBuffer();
+    return new File(
+      [buffer],
+      file.name || `image-${index + 1}.jpg`,
+      { type: file.type || "application/octet-stream", lastModified: file.lastModified || Date.now() },
+    );
+  }));
+}
+
+export function rememberBlobFile(url, file) {
+  if (url && file) pending.set(url, file);
+}
+
+export function forgetBlobFile(url) {
+  if (url) pending.delete(url);
 }
 
 export async function imageFileToJpeg(file, maxSize = 1280) {
@@ -107,8 +138,11 @@ export async function uploadMedia(getToken, file, kind = "image") {
 export async function hostMediaValue(getToken, value, name, kind = "image") {
   if (!value) return "";
   if (isHostedMedia(value)) return hostedMediaUrl(value);
-  if (typeof value === "string" && (value.startsWith("data:") || value.startsWith("blob:"))) {
-    const file = await fileFromDataUrl(value, name || "image.jpg");
+  if (typeof value !== "string") return "";
+  if (value.startsWith("blob:") || value.startsWith("data:")) {
+    const remembered = value.startsWith("blob:") ? pending.get(value) : null;
+    const file = remembered || await fileFromUrl(value, name || "image.jpg");
+    forgetBlobFile(value);
     const uploaded = await uploadMedia(getToken, file, kind);
     return uploaded.url;
   }
