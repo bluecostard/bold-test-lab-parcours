@@ -595,12 +595,15 @@ button.v2-avis-frame {
 .v2-confirm-meta dd { margin: 0; font-size: 16px; line-height: 1.4; }
 .v2-switch, .v2-pills { display: flex; gap: 8px; }
 .v2-pills { flex-wrap: nowrap; overflow-x: auto; }
+.v2-pills--wrap { flex-wrap: wrap; overflow: visible; }
 .v2-switch button, .v2-pills button {
   flex: 1; min-height: 46px; border: 0; border-radius: 999px; background: #16324c; color: inherit;
   font-size: 16px; font-weight: 800; cursor: pointer;
 }
 .v2-pills button { flex: 1 0 auto; padding-inline: 12px; white-space: nowrap; }
+.v2-pills button:disabled { opacity: 0.45; cursor: not-allowed; }
 .v2-switch button.is-on, .v2-pills button.is-on { background: var(--v2-accent); color: #142000; }
+.v2-business-form .v2-pills--wrap button { flex: 0 0 auto; }
 .v2-result-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: start; }
 .v2-result-head .v2-identity { align-items: start; }
 .v2-result-head .v2-tags { margin: 8px 0 0; }

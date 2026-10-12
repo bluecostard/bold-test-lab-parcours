@@ -19,9 +19,49 @@ export function mapSocials(list) {
   }).filter(Boolean).slice(0, 8);
 }
 
+function mapProductLink(item) {
+  const label = clean(item?.label, 40);
+  const href = clean(item?.href || item?.url, 300);
+  if (!label || !href) return null;
+  return {
+    label,
+    detail: clean(item.detail, 120) || href,
+    href,
+    icon: clean(item.icon, 8) || "◎",
+  };
+}
+
+/** Construit productLinks façon Bed Hop (App Store / Google Play / Visiter le site). */
+export function buildProductLinks(body = {}) {
+  if (Array.isArray(body.productLinks) && body.productLinks.length) {
+    return body.productLinks.map(mapProductLink).filter(Boolean).slice(0, 6);
+  }
+  const name = clean(body.name, 80);
+  const website = clean(body.website || body.projectLink, 300);
+  const appStore = clean(body.appStore || body.projectAppStore, 300);
+  const playStore = clean(body.playStore || body.projectPlayStore, 300);
+  const links = [];
+  if (appStore) {
+    links.push({ label: "App Store", detail: "Ouvrir sur l’App Store", href: appStore, icon: "●" });
+  }
+  if (playStore) {
+    links.push({ label: "Google Play", detail: "Ouvrir sur Google Play", href: playStore, icon: "▶" });
+  }
+  if (website) {
+    links.push({
+      label: "Visiter le site",
+      detail: name ? `Découvrir ${name} sur le web` : "Découvrir sur le web",
+      href: website,
+      icon: "◎",
+    });
+  }
+  return links.slice(0, 6);
+}
+
 export function draftCampaign(userId, body) {
   const name = clean(body.name, 80);
   const screenshots = Array.isArray(body.screenshots) ? body.screenshots.map(shortMedia).filter(Boolean).slice(0, 6) : [];
+  const website = clean(body.website, 300);
   return {
     id: `camp-${userId}`.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80),
     ownerId: userId,
@@ -32,8 +72,8 @@ export function draftCampaign(userId, body) {
     logo: shortMedia(body.logo),
     cover: shortMedia(body.cover) || shortMedia(body.logo),
     screenshots,
-    website: clean(body.website, 300),
-    productLinks: body.website ? [{ label: "Visiter le site", detail: clean(body.website, 300), href: clean(body.website, 300), icon: "◎" }] : [],
+    website,
+    productLinks: buildProductLinks({ ...body, name, website }),
     socials: mapSocials(body.socials),
     instructions: Array.isArray(body.instructions) ? body.instructions.map((item) => clean(item, 200)).filter(Boolean).slice(0, 8) : [],
     appScreens: ["Accueil", "Parcours", "Confirmation"],

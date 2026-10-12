@@ -16,6 +16,7 @@ import {
   snapshotFiles,
   uploadMedia,
 } from "./mediaApi.js";
+import { publishCampaign } from "./campaignsApi.js";
 import { listReviews } from "./reviewsApi.js";
 import { hasPaidCampaign } from "./state.js";
 import { BackButton, Button, Card, EntrepreneurNav, Field, Header, PageShell, SectionTitle, Tags } from "./primitives.jsx";
@@ -25,6 +26,34 @@ const networks = ["Instagram", "TikTok", "Facebook", "LinkedIn", "YouTube", "X"]
 const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const emptySocial = () => ({ platform: "", url: "" });
 const emptyInstruction = () => ({ title: "", text: "" });
+const MAX_TAGS = 6;
+
+function initialTags(account) {
+  const fromTags = Array.isArray(account.tags)
+    ? account.tags.filter((tag) => categories.includes(tag))
+    : [];
+  if (fromTags.length) return fromTags.slice(0, MAX_TAGS);
+  return account.category && categories.includes(account.category) ? [account.category] : [];
+}
+
+function buildProductLinks(account) {
+  const name = account.projectName || "";
+  const website = (account.projectLink || "").trim();
+  const appStore = (account.projectAppStore || "").trim();
+  const playStore = (account.projectPlayStore || "").trim();
+  const links = [];
+  if (appStore) links.push({ label: "App Store", detail: "Ouvrir sur l’App Store", href: appStore, icon: "●" });
+  if (playStore) links.push({ label: "Google Play", detail: "Ouvrir sur Google Play", href: playStore, icon: "▶" });
+  if (website) {
+    links.push({
+      label: "Visiter le site",
+      detail: name ? `Découvrir ${name} sur le web` : "Découvrir sur le web",
+      href: website,
+      icon: "◎",
+    });
+  }
+  return links;
+}
 
 function validUrl(value) {
   try {
@@ -143,10 +172,13 @@ function EntrepreneurFormAuthed(props) {
 
 function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
   const saved = readAccount();
+  const paid = hasPaidCampaign();
   const [name, setName] = useState(saved.projectName || "");
   const [pitch, setPitch] = useState(saved.projectPitch || "");
   const [link, setLink] = useState(saved.projectLink || "");
-  const [category, setCategory] = useState(saved.category || "");
+  const [appStore, setAppStore] = useState(saved.projectAppStore || "");
+  const [playStore, setPlayStore] = useState(saved.projectPlayStore || "");
+  const [tags, setTags] = useState(() => initialTags(saved));
   const [logo, setLogo] = useState(saved.projectLogo || "");
   const [screens, setScreens] = useState(saved.projectScreens || []);
   const [socials, setSocials] = useState(saved.projectSocials?.length ? saved.projectSocials : [emptySocial()]);
@@ -154,8 +186,18 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
   const [errors, setErrors] = useState({});
   const [storageError, setStorageError] = useState("");
   const [imageError, setImageError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("");
   const logoInput = useRef(null);
   const screenInput = useRef(null);
+
+  function toggleTag(tag) {
+    setTags((current) => {
+      if (current.includes(tag)) return current.filter((item) => item !== tag);
+      if (current.length >= MAX_TAGS) return current;
+      return [...current, tag];
+    });
+  }
 
   async function chooseLogo(event) {
     // Copier avant value="" : sinon la FileList live devient vide sur iPhone.
@@ -240,13 +282,17 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
       );
     }
   }
-  function save(event) {
+  async function save(event) {
     event.preventDefault();
+    if (busy) return;
     const next = {};
     if (!name.trim()) next.name = "Le nom est obligatoire.";
     if (!pitch.trim()) next.pitch = "La description est obligatoire.";
     if (link.trim() && !validUrl(link.trim())) next.link = "Saisissez une URL complète valide.";
-    if (!category) next.category = "Choisissez une catégorie.";
+    if (appStore.trim() && !validUrl(appStore.trim())) next.appStore = "Saisissez une URL App Store valide.";
+    if (playStore.trim() && !validUrl(playStore.trim())) next.playStore = "Saisissez une URL Google Play valide.";
+    if (!tags.length) next.tags = "Choisissez au moins une catégorie.";
+    else if (tags.length > MAX_TAGS) next.tags = `Maximum ${MAX_TAGS} catégories.`;
     if (socials.length > 6) next.socials = "Vous pouvez indiquer jusqu’à 6 réseaux.";
     const filledSocials = socials.filter((social) => social.platform || social.url.trim());
     if (!filledSocials.length) next.socials = "Ajoutez au moins 1 réseau avec un lien valide.";
@@ -266,33 +312,129 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
     if (logo && !isHostedMedia(logo)) next.logo = "Attendez la fin de l’envoi du logo (ou réessayez).";
     if (screens.some((src) => src && !isHostedMedia(src))) next.screens = "Attendez la fin de l’envoi des captures (ou réessayez).";
     setErrors(next);
+    setStorageError("");
+    setSaveStatus("");
     if (Object.keys(next).length) return;
+    const nextTags = tags.slice(0, MAX_TAGS);
     try {
       writeAccount({
-        ...readAccount(), projectName: name.trim(), projectPitch: pitch.trim(), projectLink: link.trim(), category,
-        projectLogo: logo, projectScreens: screens,
+        ...readAccount(),
+        projectName: name.trim(),
+        projectPitch: pitch.trim(),
+        projectLink: link.trim(),
+        projectAppStore: appStore.trim(),
+        projectPlayStore: playStore.trim(),
+        tags: nextTags,
+        category: nextTags[0] || "",
+        projectLogo: logo,
+        projectScreens: screens,
         projectSocials: socials
           .filter((item) => item.platform && validUrl(item.url))
           .map((item) => ({ platform: item.platform, url: item.url.trim() })),
         projectInstructions: instructions.map((item) => ({ title: item.title.trim(), text: item.text.trim() })),
         projectSteps: instructions.map((item) => item.text.trim()).join("\n\n"),
       });
+      if (paid) {
+        if (!getToken) {
+          navigate("login", { from: "entrepreneur" });
+          return;
+        }
+        setBusy(true);
+        setSaveStatus("Mise à jour de la campagne…");
+        const payload = campaignPayload(readAccount());
+        payload.logo = isHostedMedia(payload.logo) ? payload.logo : "";
+        payload.screenshots = (payload.screenshots || []).filter((src) => isHostedMedia(src));
+        payload.cover = payload.screenshots[0] || payload.logo || "";
+        await publishCampaign(getToken, payload);
+        setSaveStatus("Modifications enregistrées.");
+        navigate("results", {}, true);
+        return;
+      }
       navigate(readAccount().offerLabel ? "payment" : "offer");
     } catch (error) {
-      setStorageError(error?.name === "QuotaExceededError" || error?.code === 22
-        ? "Stockage local saturé. Supprimez des captures ou choisissez des images plus légères."
-        : "Impossible d’enregistrer la campagne sur cet appareil.");
+      if (error?.name === "QuotaExceededError" || error?.code === 22) {
+        setStorageError("Stockage local saturé. Supprimez des captures ou choisissez des images plus légères.");
+      } else if (paid) {
+        setStorageError(error?.message || "Impossible de mettre à jour la campagne en ligne.");
+      } else {
+        setStorageError("Impossible d’enregistrer la campagne sur cet appareil.");
+      }
+    } finally {
+      setBusy(false);
+      setSaveStatus("");
     }
   }
+
+  const ctaLabel = paid
+    ? "Enregistrer les modifications"
+    : readAccount().offerLabel
+      ? "Enregistrer et payer"
+      : "Enregistrer et choisir une offre";
+
   return (
     <PageShell pageRef={pageRef}>
       <form className="v2-stack v2-business-form" onSubmit={save} noValidate>
-        <BackButton onClick={back} /><div><h1>Créer ou modifier <span className="v2-accent">ma campagne</span></h1><p className="v2-muted">Ces informations composent la page visible par les testeurs.</p></div>
-        <Card><SectionTitle title="Identité du projet" /><Field label="Nom du projet" error={errors.name}><input value={name} onChange={(event) => setName(event.target.value)} /></Field><Field label="Description" error={errors.pitch}><textarea rows={3} value={pitch} onChange={(event) => setPitch(event.target.value)} /></Field><Field label="Lien produit" error={errors.link}><input type="url" placeholder="https://" value={link} onChange={(event) => setLink(event.target.value)} /></Field><label className="v2-field"><span>Catégorie</span><select value={category} onChange={(event) => setCategory(event.target.value)}><option value="">Choisir</option>{categories.map((item) => <option key={item}>{item}</option>)}</select>{errors.category ? <small role="alert">{errors.category}</small> : null}</label></Card>
+        <BackButton onClick={back} />
+        <div>
+          <h1>Créer ou modifier <span className="v2-accent">ma campagne</span></h1>
+          <p className="v2-muted">
+            {paid
+              ? "Ajustez photos, liens et consignes. Votre créneau est déjà payé — aucun nouveau paiement."
+              : "Ces informations composent la page visible par les testeurs."}
+          </p>
+        </div>
+        <Card>
+          <SectionTitle title="Identité du projet" />
+          <Field label="Nom du projet" error={errors.name}>
+            <input value={name} onChange={(event) => setName(event.target.value)} />
+          </Field>
+          <Field label="Description" error={errors.pitch}>
+            <textarea rows={3} value={pitch} onChange={(event) => setPitch(event.target.value)} />
+          </Field>
+          <div className="v2-field">
+            <span>Catégories ({tags.length}/{MAX_TAGS})</span>
+            <div className="v2-pills v2-pills--wrap" role="group" aria-label="Catégories du projet">
+              {categories.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className={tags.includes(item) ? "is-on" : ""}
+                  aria-pressed={tags.includes(item)}
+                  disabled={!tags.includes(item) && tags.length >= MAX_TAGS}
+                  onClick={() => toggleTag(item)}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+            {errors.tags ? <small role="alert">{errors.tags}</small> : null}
+          </div>
+        </Card>
+        <Card>
+          <SectionTitle
+            icon="↗"
+            title="Accéder au produit"
+            description="Les testeurs ouvrent votre produit depuis ces liens (comme sur la page campagne)."
+          />
+          <Field label="Site web" error={errors.link}>
+            <input type="url" placeholder="https://" value={link} onChange={(event) => setLink(event.target.value)} />
+          </Field>
+          <Field label="App Store" error={errors.appStore}>
+            <input type="url" placeholder="https://apps.apple.com/…" value={appStore} onChange={(event) => setAppStore(event.target.value)} />
+          </Field>
+          <Field label="Google Play" error={errors.playStore}>
+            <input type="url" placeholder="https://play.google.com/…" value={playStore} onChange={(event) => setPlayStore(event.target.value)} />
+          </Field>
+        </Card>
         <Card><SectionTitle title="Visuels" description="Logo entier et jusqu’à 6 captures. JPG, PNG, WebP ou photo iPhone." /><div className="v2-logo-editor">{logo ? <img src={logo} alt="Aperçu du logo" /> : <span className="v2-logo-placeholder">Logo</span>}<div><Button type="button" variant="outline" onClick={() => logoInput.current?.click()}>{logo ? "Remplacer" : "Ajouter un logo"}</Button>{logo ? <button type="button" className="v2-text-button" onClick={() => setLogo("")}>Supprimer</button> : null}</div></div><input ref={logoInput} className="v2-hidden-input" type="file" accept="image/*,.heic,.heif" onChange={chooseLogo} /><div className="v2-capture-list">{screens.map((src, index) => <figure key={`${src.slice(-24)}-${index}`}><img src={src} alt={`Capture ${index + 1}`} /><button type="button" onClick={() => setScreens((current) => current.filter((_, position) => position !== index))} aria-label={`Supprimer la capture ${index + 1}`}>×</button></figure>)}</div><Button type="button" variant="outline" disabled={screens.length >= 6} onClick={() => screenInput.current?.click()}>Ajouter des captures ({screens.length}/6)</Button><input ref={screenInput} className="v2-hidden-input" type="file" accept="image/*,.heic,.heif" multiple onChange={chooseScreens} />{imageError ? <p className="v2-error" role="alert">{imageError}</p> : null}{errors.logo ? <p className="v2-error" role="alert">{errors.logo}</p> : null}{errors.screens ? <p className="v2-error" role="alert">{errors.screens}</p> : null}</Card>
         <Card><SectionTitle title="Réseaux sociaux" description="Au moins 1 réseau avec une URL réelle ; les autres sont facultatifs (max. 6)." /><div className="v2-repeat-list">{socials.map((social, index) => <fieldset key={index}><legend>Réseau {index + 1}</legend><label className="v2-field"><span>Plateforme</span><select value={social.platform} onChange={(event) => setSocials((current) => current.map((item, position) => position === index ? { ...item, platform: event.target.value } : item))}><option value="">Choisir</option>{networks.map((network) => <option key={network} disabled={socials.some((item, position) => position !== index && item.platform === network)}>{network}</option>)}</select>{errors[`social-platform-${index}`] ? <small>{errors[`social-platform-${index}`]}</small> : null}</label><Field label="URL" error={errors[`social-url-${index}`]}><input type="url" placeholder="https://" value={social.url} onChange={(event) => setSocials((current) => current.map((item, position) => position === index ? { ...item, url: event.target.value } : item))} /></Field><button type="button" className="v2-text-button" onClick={() => setSocials((current) => current.filter((_, position) => position !== index))}>Supprimer</button></fieldset>)}</div>{errors.socials ? <p className="v2-error" role="alert">{errors.socials}</p> : null}<Button type="button" variant="outline" disabled={socials.length >= 6} onClick={() => setSocials((current) => [...current, emptySocial()])}>Ajouter un réseau</Button></Card>
         <Card><SectionTitle title="Consignes" description="Chaque consigne contient un titre et un texte." /><div className="v2-repeat-list">{instructions.map((instruction, index) => <fieldset key={index}><legend>Consigne {index + 1}</legend><Field label="Titre" error={errors[`instruction-title-${index}`]}><input value={instruction.title} onChange={(event) => setInstructions((current) => current.map((item, position) => position === index ? { ...item, title: event.target.value } : item))} /></Field><Field label="Texte" error={errors[`instruction-text-${index}`]}><textarea rows={3} value={instruction.text} onChange={(event) => setInstructions((current) => current.map((item, position) => position === index ? { ...item, text: event.target.value } : item))} /></Field><button type="button" className="v2-text-button" onClick={() => setInstructions((current) => current.filter((_, position) => position !== index))}>Supprimer</button></fieldset>)}</div>{errors.instructions ? <p className="v2-error">{errors.instructions}</p> : null}<Button type="button" variant="outline" onClick={() => setInstructions((current) => [...current, emptyInstruction()])}>Ajouter une consigne</Button></Card>
-        {storageError ? <p className="v2-info" role="alert">{storageError}</p> : null}<Button type="submit">{readAccount().offerLabel ? "Enregistrer et payer" : "Enregistrer et choisir une offre"} <span aria-hidden="true">→</span></Button>
+        {storageError ? <p className="v2-info" role="alert">{storageError}</p> : null}
+        {saveStatus ? <p className="v2-helper" role="status">{saveStatus}</p> : null}
+        <Button type="submit" disabled={busy}>
+          {busy ? (saveStatus || "Enregistrement…") : ctaLabel}
+          {busy ? null : <span aria-hidden="true"> →</span>}
+        </Button>
       </form>
     </PageShell>
   );
@@ -387,15 +529,19 @@ export function OfferScreen({ navigate, back, pageRef }) {
 }
 
 function campaignPayload(account) {
+  const tags = account.tags?.length ? account.tags : account.category ? [account.category] : [];
   return {
     name: account.projectName,
     pitch: account.projectPitch,
     description: account.projectPitch,
-    tags: account.tags?.length ? account.tags : account.category ? [account.category] : [],
+    tags,
     logo: account.projectLogo,
     cover: account.projectScreens?.[0] || account.projectLogo,
     screenshots: account.projectScreens || [],
     website: account.projectLink,
+    appStore: account.projectAppStore || "",
+    playStore: account.projectPlayStore || "",
+    productLinks: buildProductLinks(account),
     socials: account.projectSocials || [],
     instructions: (account.projectInstructions || []).map((item) => item.text || item.title).filter(Boolean),
     offerLabel: account.offerLabel,
