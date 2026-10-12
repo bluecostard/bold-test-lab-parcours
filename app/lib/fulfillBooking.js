@@ -1,10 +1,18 @@
 import { saveBooking } from "./bookingStore.js";
 import { saveCampaign } from "./campaignStore.js";
+import { sendCampaignPaidMail } from "./campaignPaidMail.js";
 import { queueCampaignNotice } from "./mailJobs.js";
 
 export async function fulfillBooking(booking, session) {
   if (!booking?.userId) return null;
-  if (booking.paid && booking.campaignId) return booking;
+  if (booking.paid && booking.campaignId) {
+    try {
+      await sendCampaignPaidMail(booking, booking.campaign);
+    } catch (error) {
+      console.log("mail-paid-retry", String(error?.message || error).slice(0, 180));
+    }
+    return booking;
+  }
   const campaign = {
     ...(booking.campaign || {}),
     id: `camp-${booking.userId}`.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80),
@@ -26,6 +34,11 @@ export async function fulfillBooking(booking, session) {
     paidAt: campaign.paidAt,
     sessionId: campaign.stripeSessionId,
   });
+  try {
+    await sendCampaignPaidMail(paid, campaign);
+  } catch (error) {
+    console.log("mail-paid", String(error?.message || error).slice(0, 180));
+  }
   try {
     await queueCampaignNotice(campaign.id);
   } catch (error) {

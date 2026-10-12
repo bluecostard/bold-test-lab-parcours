@@ -123,7 +123,7 @@ function NotificationsCard({ navigate }) {
   return (
     <form className="v2-stack" onSubmit={save}>
       <p className="v2-muted">
-        Facultatifs — vous pouvez les couper. Les e-mails obligatoires (bienvenue, confirmation de campagne, question sur un avis, nouveau message, modification ou annulation de créneau) partent toujours.
+        Ces alertes partent par e-mail (bonjour@gemelo.online), pas en notification système du téléphone. Facultatifs — vous pouvez les couper. Les e-mails obligatoires (bienvenue, confirmation de campagne, question sur un avis, nouveau message, modification ou annulation de créneau) partent toujours.
       </p>
       <label className="v2-consent">
         <input type="checkbox" checked={prefs.campaigns} disabled={!ready} onChange={(event) => setPrefs((current) => ({ ...current, campaigns: event.target.checked }))} />

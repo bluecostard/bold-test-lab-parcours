@@ -1,6 +1,7 @@
 import { readClerkUser } from "../lib/clerkAuth.js";
 import { isPaidOwner, listPaidBookings, readBooking } from "../lib/bookingStore.js";
 import { listCampaigns, readCampaign } from "../lib/campaignStore.js";
+import { notifyDirectMessage } from "../lib/mandatoryMail.js";
 import {
   appendMessage,
   conversationIdFor,
@@ -154,6 +155,11 @@ export default async function handler(req, res) {
       const conversation = await appendMessage({ fromId: user.id, toId: peerId, text });
       const paidBookings = await listPaidBookings();
       const peers = await peerMapFromBookings(paidBookings);
+      const fromPeer = peers.get(user.id);
+      notifyDirectMessage(peerId, {
+        fromName: fromPeer?.name || "Un propriétaire",
+        previewText: text.slice(0, 160),
+      }).catch(() => {});
       return res.status(201).json({
         unlocked: true,
         conversation: publicConversation(conversation, user.id, peers),

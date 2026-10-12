@@ -104,6 +104,74 @@ export function welcomeEmail({ name, token }) {
   return { subject, preview, text, html: wrapped.html };
 }
 
+function formatOfferDay(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return "";
+  const raw = new Intl.DateTimeFormat("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(`${value}T12:00:00`));
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+/** Confirmation transactionnelle au créateur après paiement du créneau. */
+export function campaignPaidEmail({
+  name,
+  campaignName,
+  offerLabel,
+  offerRange,
+  offerDate,
+  offerPrice,
+  token,
+}) {
+  const subject = "Votre campagne Gemelo est confirmée";
+  const preview = "Paiement reçu. Votre créneau est réservé.";
+  const hello = greeting(name);
+  const day = formatOfferDay(offerDate);
+  const price = offerPrice != null && offerPrice !== "" ? `${offerPrice} €` : "";
+  const href = `${APP}/?app=1&ecran=results`;
+  const inner = `
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.45">${escapeHtml(hello)}</p>
+    <p style="margin:12px 0 0;font-size:16px;line-height:1.45;color:#d5dfeb">Votre paiement est confirmé. La campagne <strong>${escapeHtml(campaignName || "votre projet")}</strong> est réservée sur Gemelo.</p>
+    <p style="margin:20px 0 8px;color:#d6ff4a;font-size:14px;font-weight:800">Votre créneau</p>
+    <p style="margin:0;font-size:16px;line-height:1.45">
+      ${day ? `${escapeHtml(day)}<br>` : ""}
+      ${escapeHtml(offerLabel || "")}${offerRange ? ` · ${escapeHtml(offerRange)}` : ""}
+      ${price ? `<br>${escapeHtml(price)} TTC` : ""}
+    </p>
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.45;color:#d5dfeb">Pendant ce créneau, votre projet est mis en avant sur l’accueil. Les testeurs peuvent le découvrir et publier leurs avis. Vous suivez les retours depuis votre espace résultats.</p>
+    ${button(href, "Voir mes résultats de test")}
+    <p style="margin:16px 0 0;color:#aebed1;font-size:14px;line-height:1.4">Vous pouvez modifier ou annuler jusqu’à 72 h avant le début du créneau, depuis votre compte.</p>
+  `;
+  const wrapped = wrap({
+    kicker: "CAMPAGNE CONFIRMÉE",
+    title: "Votre créneau<br>est réservé.",
+    preview,
+    inner,
+    token,
+    manageOnly: true,
+  });
+  const text = [
+    subject,
+    "",
+    hello,
+    `Votre paiement est confirmé. La campagne ${campaignName || "votre projet"} est réservée sur Gemelo.`,
+    "",
+    "Votre créneau",
+    day,
+    [offerLabel, offerRange].filter(Boolean).join(" · "),
+    price ? `${price} TTC` : "",
+    "",
+    `Voir mes résultats : ${href}`,
+    "",
+    "Modification ou annulation jusqu’à 72 h avant le début, depuis votre compte.",
+    "",
+    wrapped.footerText,
+  ].filter(Boolean).join("\n");
+  return { subject, preview, text, html: wrapped.html };
+}
+
 export function campaignEmail({ name, campaignName, tags, endsLabel, token }) {
   const subject = `Une nouvelle campagne vous attend : ${campaignName}`;
   const preview = "Découvrez les consignes et partagez un avis utile.";
@@ -212,6 +280,136 @@ export function closingEmail({ name, campaignName, hours, rank, points, endsLabe
     rankLine,
     "",
     `Tester : ${href}`,
+    "",
+    wrapped.footerText,
+  ].filter(Boolean).join("\n");
+  return { subject, preview, text, html: wrapped.html };
+}
+
+/** Question d’un entrepreneur sur un avis publié (obligatoire). */
+export function reviewQuestionEmail({ name, campaignName, question, token }) {
+  const subject = `Une question sur votre avis — ${campaignName || "Gemelo"}`;
+  const preview = "L’entrepreneur vous demande une précision.";
+  const hello = greeting(name);
+  const href = `${APP}/?app=1&ecran=messages`;
+  const inner = `
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.45">${escapeHtml(hello)}</p>
+    <p style="margin:12px 0 0;font-size:16px;line-height:1.45;color:#d5dfeb">L’entrepreneur de <strong>${escapeHtml(campaignName || "la campagne")}</strong> vous pose une question au sujet de votre avis.</p>
+    <p style="margin:18px 0 8px;color:#d6ff4a;font-size:14px;font-weight:800">Question</p>
+    <p style="margin:0;font-size:16px;line-height:1.45">${escapeHtml(question || "")}</p>
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.45;color:#d5dfeb">Vous pouvez répondre ou passer — cela ne modifie ni votre avis ni vos points.</p>
+    ${button(href, "Voir la question dans Messages")}
+  `;
+  const wrapped = wrap({
+    kicker: "QUESTION SUR VOTRE AVIS",
+    title: "Une précision<br>vous est demandée.",
+    preview,
+    inner,
+    token,
+    manageOnly: true,
+  });
+  const text = [
+    subject,
+    "",
+    hello,
+    `L’entrepreneur de ${campaignName || "la campagne"} vous pose une question au sujet de votre avis.`,
+    "",
+    question || "",
+    "",
+    `Voir la question : ${href}`,
+    "",
+    wrapped.footerText,
+  ].filter(Boolean).join("\n");
+  return { subject, preview, text, html: wrapped.html };
+}
+
+/** Nouveau message entre propriétaires de campagnes payantes (obligatoire). */
+export function directMessageEmail({ name, fromName, previewText, token }) {
+  const subject = `Nouveau message — ${fromName || "Gemelo"}`;
+  const preview = "Un propriétaire de campagne vous a écrit.";
+  const hello = greeting(name);
+  const href = `${APP}/?app=1&ecran=messages`;
+  const inner = `
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.45">${escapeHtml(hello)}</p>
+    <p style="margin:12px 0 0;font-size:16px;line-height:1.45;color:#d5dfeb"><strong>${escapeHtml(fromName || "Un propriétaire")}</strong> vous a envoyé un message sur Gemelo.</p>
+    ${previewText ? `<p style="margin:18px 0 8px;color:#d6ff4a;font-size:14px;font-weight:800">Aperçu</p><p style="margin:0;font-size:16px;line-height:1.45">${escapeHtml(previewText)}</p>` : ""}
+    ${button(href, "Ouvrir la conversation")}
+  `;
+  const wrapped = wrap({
+    kicker: "NOUVEAU MESSAGE",
+    title: "Quelqu’un vous<br>a écrit.",
+    preview,
+    inner,
+    token,
+    manageOnly: true,
+  });
+  const text = [
+    subject,
+    "",
+    hello,
+    `${fromName || "Un propriétaire"} vous a envoyé un message sur Gemelo.`,
+    previewText || "",
+    "",
+    `Ouvrir : ${href}`,
+    "",
+    wrapped.footerText,
+  ].filter(Boolean).join("\n");
+  return { subject, preview, text, html: wrapped.html };
+}
+
+/** Modification ou annulation de créneau (obligatoire). */
+export function bookingChangeEmail({
+  name,
+  campaignName,
+  kind,
+  offerLabel,
+  offerRange,
+  offerDate,
+  token,
+}) {
+  const cancelled = kind === "cancel";
+  const subject = cancelled
+    ? "Votre campagne Gemelo a été annulée"
+    : "Votre créneau Gemelo a été modifié";
+  const preview = cancelled ? "Annulation confirmée." : "Nouveau créneau enregistré.";
+  const hello = greeting(name);
+  const day = formatOfferDay(offerDate);
+  const href = `${APP}/?app=1&ecran=profile`;
+  const inner = cancelled
+    ? `
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.45">${escapeHtml(hello)}</p>
+    <p style="margin:12px 0 0;font-size:16px;line-height:1.45;color:#d5dfeb">La campagne <strong>${escapeHtml(campaignName || "votre projet")}</strong> a été annulée. Votre projet reste enregistré sur votre compte.</p>
+    ${button(href, "Voir mon profil")}
+  `
+    : `
+    <p style="margin:16px 0 0;font-size:16px;line-height:1.45">${escapeHtml(hello)}</p>
+    <p style="margin:12px 0 0;font-size:16px;line-height:1.45;color:#d5dfeb">Le créneau de <strong>${escapeHtml(campaignName || "votre projet")}</strong> a été mis à jour.</p>
+    <p style="margin:20px 0 8px;color:#d6ff4a;font-size:14px;font-weight:800">Nouveau créneau</p>
+    <p style="margin:0;font-size:16px;line-height:1.45">
+      ${day ? `${escapeHtml(day)}<br>` : ""}
+      ${escapeHtml(offerLabel || "")}${offerRange ? ` · ${escapeHtml(offerRange)}` : ""}
+    </p>
+    ${button(href, "Voir mon créneau")}
+  `;
+  const wrapped = wrap({
+    kicker: cancelled ? "CAMPAGNE ANNULÉE" : "CRÉNEAU MODIFIÉ",
+    title: cancelled ? "Annulation<br>confirmée." : "Créneau<br>mis à jour.",
+    preview,
+    inner,
+    token,
+    manageOnly: true,
+  });
+  const text = [
+    subject,
+    "",
+    hello,
+    cancelled
+      ? `La campagne ${campaignName || "votre projet"} a été annulée.`
+      : `Le créneau de ${campaignName || "votre projet"} a été mis à jour.`,
+    day,
+    [offerLabel, offerRange].filter(Boolean).join(" · "),
+    "",
+    `Voir le profil : ${href}`,
     "",
     wrapped.footerText,
   ].filter(Boolean).join("\n");

@@ -1281,10 +1281,27 @@ function RankingBody({ navigate, pageRef, openDrawer, getToken }) {
   );
 }
 
-function BookingSlotCard() {
+async function postBookingChange(getToken, payload) {
+  const token = getToken ? await getToken() : "";
+  const response = await fetch("/api/booking", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Mise à jour impossible.");
+  return data;
+}
+
+function BookingSlotCard({ getToken }) {
   const [account, setAccount] = useState(readAccount);
   const [panel, setPanel] = useState("");
   const [priceDelta, setPriceDelta] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState("");
   const catalog = useCampaignCatalog();
   const today = localToday();
   const offerLabel = account.offerLabel || "";
@@ -1304,24 +1321,67 @@ function BookingSlotCard() {
   function toggle(next) {
     setPanel((current) => (current === next ? "" : next));
     if (next !== "period") setPriceDelta(null);
+    setActionError("");
   }
 
-  function changeOffer(index) {
-    const { account: next, priceDelta: delta } = apply({ offer: offers[index] });
-    setAccount(next);
-    setPriceDelta(delta);
+  async function changeOffer(index) {
+    const offer = offers[index];
+    if (!offer || busy) return;
+    setBusy(true);
+    setActionError("");
+    try {
+      await postBookingChange(getToken, {
+        action: "update",
+        offerLabel: offer.label,
+        offerRange: offer.range,
+        offerPrice: offer.price,
+        offerDate: account.offerDate,
+      });
+      const { account: next, priceDelta: delta } = apply({ offer });
+      setAccount(next);
+      setPriceDelta(delta);
+    } catch (error) {
+      setActionError(error?.message || "Modification impossible.");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function changeDay(value) {
-    if (!isIsoDate(value)) return;
-    const { account: next } = apply({ date: value });
-    setAccount(next);
+  async function changeDay(value) {
+    if (!isIsoDate(value) || busy) return;
+    setBusy(true);
+    setActionError("");
+    try {
+      await postBookingChange(getToken, {
+        action: "update",
+        offerLabel: account.offerLabel,
+        offerRange: account.offerRange,
+        offerPrice: account.offerPrice,
+        offerDate: value,
+      });
+      const { account: next } = apply({ date: value });
+      setAccount(next);
+    } catch (error) {
+      setActionError(error?.message || "Modification impossible.");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function cancelCampaign() {
-    writeAccount({ ...readAccount(), campaignPaid: false });
-    setAccount(readAccount());
-    setPanel("");
+  async function cancelCampaign() {
+    if (busy) return;
+    setBusy(true);
+    setActionError("");
+    try {
+      await postBookingChange(getToken, { action: "cancel" });
+      writeAccount({ ...readAccount(), campaignPaid: false });
+      setAccount(readAccount());
+      setPanel("");
+    } catch (error) {
+      setActionError(error?.message || "Annulation impossible.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -1410,11 +1470,12 @@ function BookingSlotCard() {
           ) : null}
           {panel === "cancel" ? (
             <>
-              <p className="v2-info">Confirmer l’annulation ? Le projet est conservé. Paiement simulé : aucun remboursement réel.</p>
-              <Button type="button" onClick={cancelCampaign}>Confirmer l’annulation</Button>
+              <p className="v2-info">Confirmer l’annulation ? Le projet est conservé. Un e-mail de confirmation partira. Paiement simulé : aucun remboursement réel.</p>
+              <Button type="button" disabled={busy} onClick={cancelCampaign}>{busy ? "Annulation…" : "Confirmer l’annulation"}</Button>
               <button type="button" className="v2-text-button" onClick={() => setPanel("")}>Ne pas annuler</button>
             </>
           ) : null}
+          {actionError ? <p className="v2-helper" role="alert">{actionError}</p> : null}
         </>
       ) : (
         <p className="v2-info">Modification et annulation fermées — moins de 72 h avant le début.</p>
@@ -1553,7 +1614,7 @@ function ProfileBody({ navigate, pageRef, openDrawer, signedIn, name, avatar, si
             Visibilité Communauté (top 10) — gratuit, sans offre ni paiement. Pour une campagne testeurs, utilisez « Faire tester mon service » plus bas.
           </p>
         </Card>
-        <BookingSlotCard />
+        <BookingSlotCard getToken={getToken} />
         <button className="v2-service-entry" type="button" onClick={() => navigate("offer")}>
           <span aria-hidden="true">📣</span>
           <span>

@@ -1,5 +1,6 @@
 import { readClerkUser } from "../lib/clerkAuth.js";
 import { readCampaign } from "../lib/campaignStore.js";
+import { notifyReviewQuestion } from "../lib/mandatoryMail.js";
 import { readQuestion, listQuestions, saveQuestion } from "../lib/questionStore.js";
 import { readReview } from "../lib/reviewStore.js";
 
@@ -77,6 +78,12 @@ export default async function handler(req, res) {
         answer: null,
       };
       const saved = await saveQuestion(question);
+      if (saved.authorId && saved.authorId !== user.id) {
+        notifyReviewQuestion(saved.authorId, {
+          campaignName: campaign.name || "",
+          question: saved.text,
+        }).catch(() => {});
+      }
       return res.status(201).json({ question: publicQuestion(saved) });
     } catch (error) {
       console.log("questions-post", String(error?.message || error).slice(0, 180));
