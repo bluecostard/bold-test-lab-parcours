@@ -6,8 +6,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "cap:sync": "vite build && cap sync ios",
-    "cap:ios": "cap open ios"
+    "cap:sync": "vite build && cap sync ios && node scripts/register-iap-plugin.mjs",
+    "cap:ios": "cap open ios",
+    "cap:register-iap": "node scripts/register-iap-plugin.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.2",

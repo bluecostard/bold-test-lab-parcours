@@ -7,7 +7,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Empêche le linker d’éliminer le plugin IAP (classe locale hors SPM).
+        _ = GemeloIapPlugin.self
+        _ = GemeloBridgeViewController.self
         return true
     }
 

@@ -1,7 +1,7 @@
 import UIKit
 import Capacitor
 
-/// Enregistre les plugins locaux de l’app (cap sync n’ajoute que les plugins npm).
+/// Enregistre GemeloIap : `cap sync` n’inclut que les plugins npm dans packageClassList.
 class GemeloBridgeViewController: CAPBridgeViewController {
   override open func capacitorDidLoad() {
     bridge?.registerPluginInstance(GemeloIapPlugin())
