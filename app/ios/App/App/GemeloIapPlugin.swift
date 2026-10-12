@@ -24,8 +24,11 @@ public class GemeloIapPlugin: CAPPlugin, CAPBridgedPlugin {
     }
     Task { @MainActor in
       do {
-        // Nettoyer d’éventuelles transactions bloquantes (max 3 s).
-        await self.drainUnfinished(seconds: 3)
+        // Si un achat précédent n’a pas été confirmé serveur, le renvoyer (ne pas finish).
+        if let pending = await self.pendingPurchase(productId: productId) {
+          call.resolve(pending)
+          return
+        }
 
         let products: [Product]
         do {
@@ -84,14 +87,19 @@ public class GemeloIapPlugin: CAPPlugin, CAPBridgedPlugin {
   }
 
   @MainActor
-  private func drainUnfinished(seconds: Double) async {
-    let deadline = Date().addingTimeInterval(seconds)
+  private func pendingPurchase(productId: String) async -> [String: String]? {
+    let deadline = Date().addingTimeInterval(2)
     for await update in Transaction.unfinished {
       if Date() > deadline { break }
-      if let transaction = try? checked(update) {
-        await transaction.finish()
+      guard let transaction = try? checked(update) else { continue }
+      if transaction.productID == productId {
+        return [
+          "jws": update.jwsRepresentation,
+          "transactionId": String(transaction.id),
+        ]
       }
     }
+    return nil
   }
 
   @MainActor

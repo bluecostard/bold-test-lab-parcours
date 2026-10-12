@@ -31,7 +31,8 @@ export default async function handler(req, res) {
     try {
       const paidTx = await verifyAppleTransaction({
         transactionId: clean(body.transactionId, 80),
-        jws: clean(body.jws, 8000),
+        // Les JWS StoreKit dépassent souvent 8 Ko (chaîne x5c) — ne pas tronquer.
+        jws: clean(body.jws, 100000),
         productId: booking.appleProductId,
       });
       const offer = offerByAppleProduct(paidTx.productId);
