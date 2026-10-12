@@ -34,9 +34,11 @@ import {
 import { SmokeScreen } from "./smoke.jsx";
 import "./v2.css";
 
-const swipeIgnore = "input, textarea, .v2-screenshot-rail, .v2-project-rail, .v2-screenshot-viewer, .v2-pitch-viewer, .v2-drawer, .v2-pills";
+const swipeIgnore = "input, textarea, .v2-screenshot-rail, .v2-project-rail, .v2-screenshot-viewer, .v2-pitch-viewer, .v2-drawer";
 const homePlace = { screen: "discover", campaignId: null, reportId: null, from: null };
 const topScroll = { scrollY: 0, railLeft: 0 };
+const EDGE_PX = 48;
+const SWIPE_DX = 56;
 
 function isClerkAuthHash() {
   return /^#\/(verify|sign-up|sign-in|factor|continue|sso-callback|oauth)/i.test(window.location.hash);
@@ -145,9 +147,15 @@ export function AppV2() {
     if (screen === "discover") {
       history.current = [];
       show(homePlace);
+      try {
+        window.history.replaceState({ gemelo: true, screen: "discover" }, "");
+      } catch {
+        /* ignore */
+      }
       return;
     }
     const saved = captureScroll();
+    let pushed = false;
     setPlace((current) => {
       const next = {
         screen,
@@ -156,17 +164,37 @@ export function AppV2() {
         from: "from" in params ? params.from : current.from,
       };
       const moved = current.screen !== next.screen || current.campaignId !== next.campaignId || current.reportId !== next.reportId;
-      if (!replace && moved) history.current.push({ ...current, ...saved });
+      if (!replace && moved) {
+        history.current.push({ ...current, ...saved });
+        pushed = true;
+      }
       return next;
     });
+    try {
+      if (replace) window.history.replaceState({ gemelo: true, screen }, "");
+      else if (pushed) window.history.pushState({ gemelo: true, screen }, "");
+    } catch {
+      /* ignore */
+    }
     pendingScroll.current = topScroll;
     setDrawer(false);
   }
 
-  function back() {
-    if (interceptBack.current?.()) return;
+  function applyBack() {
+    if (interceptBack.current?.()) return true;
     const previous = history.current.pop();
     show(placeOnly(previous), previous ? { scrollY: previous.scrollY || 0, railLeft: previous.railLeft || 0 } : topScroll);
+    return Boolean(previous);
+  }
+
+  function back() {
+    if (interceptBack.current?.()) return;
+    // Préférer history.back pour le geste iOS natif (allowsBackForwardNavigationGestures).
+    if (history.current.length && window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+    applyBack();
   }
   backRef.current = back;
 
@@ -192,19 +220,30 @@ export function AppV2() {
 
   useEffect(() => {
     if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
-    window.history.pushState({ gemelo: true }, "");
+    try {
+      window.history.replaceState({ gemelo: true, screen: placeRef.current.screen }, "");
+    } catch {
+      /* ignore */
+    }
     function onPop() {
+      // Annuler le back navigateur uniquement si un overlay (galerie…) l’intercepte.
       if (interceptBack.current?.()) {
-        window.history.pushState({ gemelo: true }, "");
+        try {
+          window.history.pushState({ gemelo: true }, "");
+        } catch {
+          /* ignore */
+        }
         return;
       }
       if (placeRef.current.screen === "login" || isClerkAuthHash()) {
-        window.history.pushState({ gemelo: true }, "");
+        try {
+          window.history.pushState({ gemelo: true }, "");
+        } catch {
+          /* ignore */
+        }
         return;
       }
-      const previous = history.current.pop();
-      show(placeOnly(previous), previous ? { scrollY: previous.scrollY || 0, railLeft: previous.railLeft || 0 } : topScroll);
-      window.history.pushState({ gemelo: true }, "");
+      applyBack();
     }
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
@@ -243,28 +282,32 @@ export function AppV2() {
     let startY = 0;
     let tracking = false;
     let fired = false;
-    const capture = { capture: true, passive: true };
+    const startOpts = { capture: true, passive: true };
     const moveOpts = { capture: true, passive: false };
     function loc(event) {
       return event.changedTouches?.[0] || event.touches?.[0] || event;
     }
+    /** Bord gauche de l’écran (pas de la colonne .v2-page centrée). */
     function fromLeft(event) {
-      const point = loc(event);
-      const root = pageRef.current;
-      const rect = root?.getBoundingClientRect();
-      const left = rect ? rect.left : 0;
-      const x = point.clientX - left;
-      const zone = 28;
-      const top = rect ? rect.top : 0;
-      const bottom = rect ? rect.bottom : window.innerHeight;
-      return x >= -32 && x <= zone && point.clientY >= top - 8 && point.clientY <= bottom + 8;
+      return loc(event).clientX <= EDGE_PX;
     }
     function blocked(event) {
       const node = event.target;
       return Boolean(node && node.closest && node.closest(swipeIgnore));
     }
     function isBack(dx, dy) {
-      return dx > 48 && Math.abs(dx) >= Math.abs(dy);
+      return dx >= SWIPE_DX && dx >= Math.abs(dy) * 1.15;
+    }
+    function stopMove() {
+      document.removeEventListener("touchmove", move, moveOpts);
+      document.removeEventListener("pointermove", move, moveOpts);
+    }
+    function fireBack() {
+      if (fired) return;
+      fired = true;
+      tracking = false;
+      stopMove();
+      backRef.current();
     }
     function begin(event) {
       if (tracking) return;
@@ -275,30 +318,21 @@ export function AppV2() {
       startY = point.clientY;
       tracking = true;
       fired = false;
-      document.addEventListener("pointermove", move, moveOpts);
       document.addEventListener("touchmove", move, moveOpts);
-    }
-    function stopMove() {
-      document.removeEventListener("pointermove", move, moveOpts);
-      document.removeEventListener("touchmove", move, moveOpts);
+      document.addEventListener("pointermove", move, moveOpts);
     }
     function move(event) {
       if (!tracking || fired) return;
       const point = loc(event);
       const dx = point.clientX - startX;
       const dy = point.clientY - startY;
-      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 8) {
+      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 12) {
         tracking = false;
         stopMove();
         return;
       }
-      if (dx > 10 && Math.abs(dx) > Math.abs(dy) && event.cancelable) event.preventDefault();
-      if (isBack(dx, dy)) {
-        fired = true;
-        tracking = false;
-        stopMove();
-        backRef.current();
-      }
+      if (dx > 8 && Math.abs(dx) > Math.abs(dy) && event.cancelable) event.preventDefault();
+      if (isBack(dx, dy)) fireBack();
     }
     function end(event) {
       stopMove();
@@ -308,26 +342,27 @@ export function AppV2() {
       }
       tracking = false;
       const point = loc(event);
-      if (isBack(point.clientX - startX, point.clientY - startY)) backRef.current();
+      if (isBack(point.clientX - startX, point.clientY - startY)) fireBack();
     }
     function cancel() {
       tracking = false;
+      fired = false;
       stopMove();
     }
-    document.addEventListener("pointerdown", begin, capture);
-    document.addEventListener("pointerup", end, capture);
-    document.addEventListener("pointercancel", cancel, capture);
-    document.addEventListener("touchstart", begin, capture);
-    document.addEventListener("touchend", end, capture);
-    document.addEventListener("touchcancel", cancel, capture);
+    document.addEventListener("touchstart", begin, startOpts);
+    document.addEventListener("touchend", end, startOpts);
+    document.addEventListener("touchcancel", cancel, startOpts);
+    document.addEventListener("pointerdown", begin, startOpts);
+    document.addEventListener("pointerup", end, startOpts);
+    document.addEventListener("pointercancel", cancel, startOpts);
     return () => {
       stopMove();
-      document.removeEventListener("pointerdown", begin, capture);
-      document.removeEventListener("pointerup", end, capture);
-      document.removeEventListener("pointercancel", cancel, capture);
-      document.removeEventListener("touchstart", begin, capture);
-      document.removeEventListener("touchend", end, capture);
-      document.removeEventListener("touchcancel", cancel, capture);
+      document.removeEventListener("touchstart", begin, startOpts);
+      document.removeEventListener("touchend", end, startOpts);
+      document.removeEventListener("touchcancel", cancel, startOpts);
+      document.removeEventListener("pointerdown", begin, startOpts);
+      document.removeEventListener("pointerup", end, startOpts);
+      document.removeEventListener("pointercancel", cancel, startOpts);
     };
   }, []);
 

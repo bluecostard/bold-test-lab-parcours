@@ -7,4 +7,10 @@ class GemeloBridgeViewController: CAPBridgeViewController {
   override open func capacitorDidLoad() {
     bridge?.registerPluginInstance(GemeloIapPlugin())
   }
+
+  override open func viewDidAppear(_ animated: Bool) {
+    super.viewDidAppear(animated)
+    // Glissement depuis le bord gauche (geste système iOS) → history.back → popstate SPA.
+    webView?.allowsBackForwardNavigationGestures = true
+  }
 }

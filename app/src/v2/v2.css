@@ -16,7 +16,8 @@
   margin: 0 auto;
   overflow-x: hidden;
   overscroll-behavior-x: none;
-  touch-action: manipulation;
+  /* pan-y : le scroll vertical reste natif ; le retour horizontal est géré en JS / geste WKWebView */
+  touch-action: pan-y;
   background:
     radial-gradient(circle at 70% 0, rgba(9, 53, 79, .42), transparent 27rem),
     var(--v2-bg);
