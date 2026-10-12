@@ -4,7 +4,7 @@ import { readAccount, writeAccount } from "../screens/account.js";
 import { slotAvailable } from "../../lib/availability.js";
 import { apply, addDays, demoOfferDays, formattedDate, isIsoDate, localToday, slotEnded } from "./booking.js";
 import { useCampaignCatalog } from "./catalog.js";
-import { confirmAppleCheckout, confirmCheckout, paymentMode, startAppleCheckout, startCheckout } from "./checkoutApi.js";
+import { confirmAppleCheckout, confirmCheckout, paymentMode, requestCampaignConfirmMail, startAppleCheckout, startCheckout } from "./checkoutApi.js";
 import { finishAppleProduct, isNativeIos, purchaseAppleProduct } from "./nativePay.js";
 import { formatOfferPrice, formatStoredOfferPrice, offers } from "./data.js";
 import {
@@ -510,6 +510,11 @@ function PaymentBody({ navigate, back, pageRef, getToken, user }) {
           offerPrice: result.offerPrice || next.offerPrice,
           offerDate: result.offerDate || next.offerDate,
         });
+        try {
+          await requestCampaignConfirmMail(getToken, common.email);
+        } catch {
+          /* l’écran confirmation retente */
+        }
         navigate("confirmation", {}, true);
         return;
       }
@@ -582,20 +587,29 @@ function PaymentBody({ navigate, back, pageRef, getToken, user }) {
 }
 
 export function ConfirmationScreen(props) {
-  return clerkKey ? <ConfirmationAuthed {...props} /> : <ConfirmationBody {...props} getToken={null} />;
+  return clerkKey ? <ConfirmationAuthed {...props} /> : <ConfirmationBody {...props} getToken={null} email="" />;
 }
 
 function ConfirmationAuthed(props) {
   const { getToken } = useAuth();
-  return <ConfirmationBody {...props} getToken={getToken} />;
+  const { user } = useUser();
+  return (
+    <ConfirmationBody
+      {...props}
+      getToken={getToken}
+      email={user?.primaryEmailAddress?.emailAddress || ""}
+    />
+  );
 }
 
-function ConfirmationBody({ navigate, pageRef, getToken }) {
+function ConfirmationBody({ navigate, pageRef, getToken, email = "" }) {
   const [account, setAccount] = useState(readAccount);
   const slot = campaignWindow(account);
   const [receipt, setReceipt] = useState(false);
   const [ready, setReady] = useState(hasPaidCampaign);
   const [payMode, setPayMode] = useState(null);
+  const [mailStatus, setMailStatus] = useState("");
+  const [mailBusy, setMailBusy] = useState(false);
   useEffect(() => {
     paymentMode().then(setPayMode).catch(() => setPayMode({ available: false, livemode: false }));
   }, []);
@@ -624,6 +638,28 @@ function ConfirmationBody({ navigate, pageRef, getToken }) {
       window.history.replaceState({}, "", "/?ecran=confirmation");
     }).catch(() => navigate("payment", {}, true));
   }, [getToken, navigate]);
+  async function sendConfirmMail() {
+    if (!getToken || mailBusy) return;
+    setMailBusy(true);
+    setMailStatus("Envoi de l’e-mail de confirmation…");
+    try {
+      const result = await requestCampaignConfirmMail(getToken, email, true);
+      setMailStatus(
+        result.sent
+          ? `Confirmation envoyée${email ? ` à ${email}` : ""}. Vérifiez aussi les indésirables.`
+          : "E-mail déjà traité. Vérifiez vos indésirables, ou réessayez dans une minute.",
+      );
+    } catch (error) {
+      setMailStatus(error.message || "Envoi impossible pour le moment.");
+    } finally {
+      setMailBusy(false);
+    }
+  }
+  useEffect(() => {
+    if (!ready || !getToken) return;
+    sendConfirmMail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- un envoi au chargement de la confirmation
+  }, [ready, getToken, email]);
   if (!ready) {
     return (
       <PageShell pageRef={pageRef}>
@@ -662,8 +698,12 @@ function ConfirmationBody({ navigate, pageRef, getToken }) {
             <li>Nous vérifierons les liens et les consignes avant sa mise en ligne.</li>
             <li>Retrouvez votre campagne et vos résultats dans votre espace.</li>
           </ul>
+          {mailStatus ? <p className="v2-helper" role="status">{mailStatus}</p> : null}
           <Button type="button" onClick={() => navigate("results", {}, true)}>Voir ma campagne <span aria-hidden="true">→</span></Button>
           <Button type="button" variant="outline" onClick={() => setReceipt(true)}>Voir mon reçu</Button>
+          <Button type="button" variant="outline" disabled={mailBusy} onClick={sendConfirmMail}>
+            {mailBusy ? "Envoi…" : "Renvoyer l’e-mail de confirmation"}
+          </Button>
         </Card>
         {receipt ? (
           <Card>

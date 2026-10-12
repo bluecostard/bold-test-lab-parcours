@@ -62,3 +62,15 @@ export async function confirmCheckout(getToken, sessionId) {
   if (!response.ok) throw new Error(data.error || "Paiement introuvable.");
   return data;
 }
+
+/** Envoie (ou renvoie) l’e-mail de confirmation de campagne au créateur. */
+export async function requestCampaignConfirmMail(getToken, email = "", force = true) {
+  const response = await fetch("/api/campaign-confirm-mail", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeader(getToken)) },
+    body: JSON.stringify({ email: email || undefined, force }),
+  });
+  const data = await readJson(response);
+  if (!response.ok) throw new Error(data.error || "Envoi impossible.");
+  return data;
+}

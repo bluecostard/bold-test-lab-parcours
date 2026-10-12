@@ -7,25 +7,37 @@ function clean(value, limit = 240) {
   return typeof value === "string" ? value.trim().slice(0, limit) : "";
 }
 
+async function sendViaResend(resendKey, { to, replyTo, subject, text, html }) {
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: MAIL_FROM,
+      to: [to],
+      reply_to: replyTo || MAIL_ADDRESS,
+      subject,
+      text,
+      html,
+    }),
+  });
+  if (response.ok) return;
+  const detail = await response.text().catch(() => "");
+  console.log("resend-fail", response.status, detail.slice(0, 200));
+  throw new Error(`resend-${response.status}`);
+}
+
 export async function sendMail({ to, replyTo, subject, text, html }) {
   const resendKey = process.env.RESEND_API_KEY;
   const gmailUser = clean(process.env.GMAIL_USER || "", 254);
   const gmailPass = (process.env.GMAIL_APP_PASSWORD || "").replace(/\s+/g, "");
   if (resendKey) {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: MAIL_FROM,
-        to: [to],
-        reply_to: replyTo || MAIL_ADDRESS,
-        subject,
-        text,
-        html,
-      }),
-    });
-    if (!response.ok) throw new Error(`resend-${response.status}`);
-    return;
+    try {
+      await sendViaResend(resendKey, { to, replyTo, subject, text, html });
+      return;
+    } catch (error) {
+      if (!gmailPass || !gmailUser) throw error;
+      console.log("mail-fallback-gmail", String(error?.message || error).slice(0, 80));
+    }
   }
   if (!gmailPass || !gmailUser) throw new Error("missing-mail-provider");
   await sendGmail({ user: gmailUser, pass: gmailPass, to, replyTo: replyTo || MAIL_ADDRESS, subject, text, html });
