@@ -232,10 +232,11 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
       }
     }
     if (failures.length) {
+      const detail = failures[0];
       setImageError(
         failures.length === files.length
-          ? "Impossible d’ajouter ces captures. Essayez des JPG ou PNG."
-          : `${files.length - failures.length} capture(s) ajoutée(s), ${failures.length} refusée(s).`,
+          ? detail || "Impossible d’ajouter ces captures. Essayez un JPG ou un PNG."
+          : `${files.length - failures.length} ajoutée(s), ${failures.length} refusée(s) : ${detail}`,
       );
     }
   }

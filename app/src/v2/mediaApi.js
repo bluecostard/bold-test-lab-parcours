@@ -180,8 +180,8 @@ export async function uploadMedia(getToken, file, kind = "image") {
     if (!mime.startsWith("image/") && !/\.(jpe?g|png|webp|gif|heic|heif)$/i.test(file.name || "")) {
       throw new Error("Choisissez une image JPG, PNG, WebP ou HEIC.");
     }
-    // Toujours recompresser : HEIC iPhone + taille API Vercel.
-    ready = await imageFileToJpeg(file, 960);
+    // Toujours recompresser : HEIC iPhone + limite body Vercel (~4,5 Mo).
+    ready = await imageFileToJpeg(file, 720);
     type = "image";
   }
   const max = type === "video" ? videoMax : imageMax;
@@ -192,31 +192,20 @@ export async function uploadMedia(getToken, file, kind = "image") {
     throw new Error("Choisissez une vidéo MP4 ou MOV.");
   }
 
-  if (type === "video") {
+  // Images : upload serveur uniquement (le client Blob échoue souvent dans la WebView iOS).
+  if (type === "image") {
     return withTimeout(
-      uploadMediaViaBlobClient(getToken, ready, type),
-      60000,
-      "Envoi de la vidéo trop lent. Réessayez.",
+      uploadMediaViaServer(getToken, ready, type),
+      45000,
+      "Envoi de l’image trop lent. Réessayez.",
     );
   }
 
-  try {
-    return await withTimeout(
-      uploadMediaViaBlobClient(getToken, ready, type),
-      35000,
-      "Envoi trop lent (client).",
-    );
-  } catch (clientError) {
-    try {
-      return await withTimeout(
-        uploadMediaViaServer(getToken, ready, type),
-        35000,
-        "Envoi trop lent (serveur).",
-      );
-    } catch (serverError) {
-      throw new Error(serverError.message || clientError.message || "Envoi impossible.");
-    }
-  }
+  return withTimeout(
+    uploadMediaViaBlobClient(getToken, ready, type),
+    60000,
+    "Envoi de la vidéo trop lent. Réessayez.",
+  );
 }
 
 export async function hostMediaValue(getToken, value, name, kind = "image") {
