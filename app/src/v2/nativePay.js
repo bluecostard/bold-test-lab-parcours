@@ -15,26 +15,38 @@ function withTimeout(promise, ms, message) {
   return Promise.race([Promise.resolve(promise), timeout]).finally(() => clearTimeout(timer));
 }
 
-async function iapPlugin() {
-  const { Capacitor, registerPlugin } = await import("@capacitor/core");
-  if (typeof Capacitor.isPluginAvailable === "function" && !Capacitor.isPluginAvailable("GemeloIap")) {
+/** Appelle le plugin natif via le bridge injecté (évite le proxy @capacitor/core du bundle web). */
+function nativeIap() {
+  const Cap = typeof window !== "undefined" ? window.Capacitor : null;
+  if (!Cap?.isNativePlatform?.() || Cap.getPlatform?.() !== "ios") {
+    throw new Error("Paiement Apple réservé à l’app iOS.");
+  }
+  if (typeof Cap.nativePromise !== "function") {
+    throw new Error("Bridge App Store indisponible. Réinstallez la dernière build TestFlight.");
+  }
+  const headers = Cap.PluginHeaders;
+  const listed = Array.isArray(headers) && headers.some((h) => h?.name === "GemeloIap");
+  const marked =
+    typeof Cap.isPluginAvailable === "function" ? Cap.isPluginAvailable("GemeloIap") : listed;
+  if (!marked && !listed) {
     throw new Error(
       "Module App Store non enregistré dans cette build. Supprimez Gemelo, réinstallez la dernière TestFlight, puis réessayez.",
     );
   }
-  return registerPlugin("GemeloIap");
+  return {
+    ping: () => Cap.nativePromise("GemeloIap", "ping", {}),
+    purchase: (productId) => Cap.nativePromise("GemeloIap", "purchase", { productId }),
+    finish: (transactionId) => Cap.nativePromise("GemeloIap", "finish", { transactionId }),
+  };
 }
 
 export async function pingAppleIap() {
   try {
-    const GemeloIap = await iapPlugin();
-    if (typeof GemeloIap?.ping !== "function") {
-      throw new Error("Module App Store incomplet. Réinstallez la dernière build TestFlight.");
-    }
+    const iap = nativeIap();
     const result = await withTimeout(
-      GemeloIap.ping(),
-      6000,
-      "Module App Store sans réponse (6 s). Réinstallez la dernière build TestFlight.",
+      iap.ping(),
+      4000,
+      "Module App Store sans réponse. Réinstallez la dernière build TestFlight.",
     );
     if (!result?.ok) throw new Error("Module App Store invalide.");
     return result;
@@ -45,12 +57,11 @@ export async function pingAppleIap() {
 
 export async function purchaseAppleProduct(productId) {
   try {
-    await pingAppleIap();
-    const GemeloIap = await iapPlugin();
+    const iap = nativeIap();
     return await withTimeout(
-      GemeloIap.purchase({ productId }),
+      iap.purchase(productId),
       100000,
-      "La fenêtre App Store ne s’est pas ouverte. Compte Sandbox : Réglages → App Store.",
+      "La fenêtre Apple Pay / App Store ne s’est pas ouverte. Compte Sandbox : Réglages → App Store.",
     );
   } catch (error) {
     throw new Error(pluginMessage(error));
@@ -59,8 +70,8 @@ export async function purchaseAppleProduct(productId) {
 
 export async function finishAppleProduct(transactionId) {
   try {
-    const GemeloIap = await iapPlugin();
-    return await GemeloIap.finish({ transactionId });
+    const iap = nativeIap();
+    return await iap.finish(transactionId);
   } catch (error) {
     throw new Error(pluginMessage(error));
   }

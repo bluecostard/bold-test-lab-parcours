@@ -7,9 +7,19 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = scene as? UIWindowScene else { return }
 
-        window = UIWindow(windowScene: windowScene)
-        window?.rootViewController = GemeloBridgeViewController()
-        window?.makeKeyAndVisible()
+        // Le storyboard Main fournit déjà GemeloBridgeViewController.
+        // Ne pas créer une 2ᵉ fenêtre : sinon le JS parle à un bridge mort et ping/purchase restent pendus.
+        if let existing = windowScene.windows.first {
+            window = existing
+            if !(existing.rootViewController is GemeloBridgeViewController) {
+                existing.rootViewController = GemeloBridgeViewController()
+            }
+        } else {
+            let created = UIWindow(windowScene: windowScene)
+            created.rootViewController = GemeloBridgeViewController()
+            created.makeKeyAndVisible()
+            window = created
+        }
 
         SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)
     }
