@@ -47,7 +47,11 @@ export default async function handler(req, res) {
     });
     return res.status(200).json(json);
   } catch (error) {
-    console.log("upload", String(error?.message || error).slice(0, 180));
-    return res.status(400).json({ error: "Envoi impossible." });
+    const message = String(error?.message || error).slice(0, 180);
+    console.log("upload", message);
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      return res.status(503).json({ error: "Stockage images indisponible (config Blob)." });
+    }
+    return res.status(400).json({ error: `Envoi impossible : ${message}` });
   }
 }

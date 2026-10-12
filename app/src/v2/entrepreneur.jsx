@@ -9,7 +9,6 @@ import { finishAppleProduct, isNativeIos, purchaseAppleProduct } from "./nativeP
 import { formatOfferPrice, formatStoredOfferPrice, offers } from "./data.js";
 import {
   forgetBlobFile,
-  hostMediaValueSoft,
   imageFileToJpeg,
   isHostedMedia,
   previewUrl,
@@ -263,6 +262,8 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
       if (!instruction.title.trim()) next[`instruction-title-${index}`] = "Titre obligatoire.";
       if (!instruction.text.trim()) next[`instruction-text-${index}`] = "Texte obligatoire.";
     });
+    if (logo && !isHostedMedia(logo)) next.logo = "Attendez la fin de l’envoi du logo (ou réessayez).";
+    if (screens.some((src) => src && !isHostedMedia(src))) next.screens = "Attendez la fin de l’envoi des captures (ou réessayez).";
     setErrors(next);
     if (Object.keys(next).length) return;
     try {
@@ -287,7 +288,7 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
       <form className="v2-stack v2-business-form" onSubmit={save} noValidate>
         <BackButton onClick={back} /><div><h1>Créer ou modifier <span className="v2-accent">ma campagne</span></h1><p className="v2-muted">Ces informations composent la page visible par les testeurs.</p></div>
         <Card><SectionTitle title="Identité du projet" /><Field label="Nom du projet" error={errors.name}><input value={name} onChange={(event) => setName(event.target.value)} /></Field><Field label="Description" error={errors.pitch}><textarea rows={3} value={pitch} onChange={(event) => setPitch(event.target.value)} /></Field><Field label="Lien produit" error={errors.link}><input type="url" placeholder="https://" value={link} onChange={(event) => setLink(event.target.value)} /></Field><label className="v2-field"><span>Catégorie</span><select value={category} onChange={(event) => setCategory(event.target.value)}><option value="">Choisir</option>{categories.map((item) => <option key={item}>{item}</option>)}</select>{errors.category ? <small role="alert">{errors.category}</small> : null}</label></Card>
-        <Card><SectionTitle title="Visuels" description="Logo entier et jusqu’à 6 captures. JPG, PNG, WebP ou photo iPhone." /><div className="v2-logo-editor">{logo ? <img src={logo} alt="Aperçu du logo" /> : <span className="v2-logo-placeholder">Logo</span>}<div><Button type="button" variant="outline" onClick={() => logoInput.current?.click()}>{logo ? "Remplacer" : "Ajouter un logo"}</Button>{logo ? <button type="button" className="v2-text-button" onClick={() => setLogo("")}>Supprimer</button> : null}</div></div><input ref={logoInput} className="v2-hidden-input" type="file" accept="image/*,.heic,.heif" onChange={chooseLogo} /><div className="v2-capture-list">{screens.map((src, index) => <figure key={`${src.slice(-24)}-${index}`}><img src={src} alt={`Capture ${index + 1}`} /><button type="button" onClick={() => setScreens((current) => current.filter((_, position) => position !== index))} aria-label={`Supprimer la capture ${index + 1}`}>×</button></figure>)}</div><Button type="button" variant="outline" disabled={screens.length >= 6} onClick={() => screenInput.current?.click()}>Ajouter des captures ({screens.length}/6)</Button><input ref={screenInput} className="v2-hidden-input" type="file" accept="image/*,.heic,.heif" multiple onChange={chooseScreens} />{imageError ? <p className="v2-error" role="alert">{imageError}</p> : null}</Card>
+        <Card><SectionTitle title="Visuels" description="Logo entier et jusqu’à 6 captures. JPG, PNG, WebP ou photo iPhone." /><div className="v2-logo-editor">{logo ? <img src={logo} alt="Aperçu du logo" /> : <span className="v2-logo-placeholder">Logo</span>}<div><Button type="button" variant="outline" onClick={() => logoInput.current?.click()}>{logo ? "Remplacer" : "Ajouter un logo"}</Button>{logo ? <button type="button" className="v2-text-button" onClick={() => setLogo("")}>Supprimer</button> : null}</div></div><input ref={logoInput} className="v2-hidden-input" type="file" accept="image/*,.heic,.heif" onChange={chooseLogo} /><div className="v2-capture-list">{screens.map((src, index) => <figure key={`${src.slice(-24)}-${index}`}><img src={src} alt={`Capture ${index + 1}`} /><button type="button" onClick={() => setScreens((current) => current.filter((_, position) => position !== index))} aria-label={`Supprimer la capture ${index + 1}`}>×</button></figure>)}</div><Button type="button" variant="outline" disabled={screens.length >= 6} onClick={() => screenInput.current?.click()}>Ajouter des captures ({screens.length}/6)</Button><input ref={screenInput} className="v2-hidden-input" type="file" accept="image/*,.heic,.heif" multiple onChange={chooseScreens} />{imageError ? <p className="v2-error" role="alert">{imageError}</p> : null}{errors.logo ? <p className="v2-error" role="alert">{errors.logo}</p> : null}{errors.screens ? <p className="v2-error" role="alert">{errors.screens}</p> : null}</Card>
         <Card><SectionTitle title="Réseaux sociaux" description="Au moins 1 réseau avec une URL réelle ; les autres sont facultatifs (max. 6)." /><div className="v2-repeat-list">{socials.map((social, index) => <fieldset key={index}><legend>Réseau {index + 1}</legend><label className="v2-field"><span>Plateforme</span><select value={social.platform} onChange={(event) => setSocials((current) => current.map((item, position) => position === index ? { ...item, platform: event.target.value } : item))}><option value="">Choisir</option>{networks.map((network) => <option key={network} disabled={socials.some((item, position) => position !== index && item.platform === network)}>{network}</option>)}</select>{errors[`social-platform-${index}`] ? <small>{errors[`social-platform-${index}`]}</small> : null}</label><Field label="URL" error={errors[`social-url-${index}`]}><input type="url" placeholder="https://" value={social.url} onChange={(event) => setSocials((current) => current.map((item, position) => position === index ? { ...item, url: event.target.value } : item))} /></Field><button type="button" className="v2-text-button" onClick={() => setSocials((current) => current.filter((_, position) => position !== index))}>Supprimer</button></fieldset>)}</div>{errors.socials ? <p className="v2-error" role="alert">{errors.socials}</p> : null}<Button type="button" variant="outline" disabled={socials.length >= 6} onClick={() => setSocials((current) => [...current, emptySocial()])}>Ajouter un réseau</Button></Card>
         <Card><SectionTitle title="Consignes" description="Chaque consigne contient un titre et un texte." /><div className="v2-repeat-list">{instructions.map((instruction, index) => <fieldset key={index}><legend>Consigne {index + 1}</legend><Field label="Titre" error={errors[`instruction-title-${index}`]}><input value={instruction.title} onChange={(event) => setInstructions((current) => current.map((item, position) => position === index ? { ...item, title: event.target.value } : item))} /></Field><Field label="Texte" error={errors[`instruction-text-${index}`]}><textarea rows={3} value={instruction.text} onChange={(event) => setInstructions((current) => current.map((item, position) => position === index ? { ...item, text: event.target.value } : item))} /></Field><button type="button" className="v2-text-button" onClick={() => setInstructions((current) => current.filter((_, position) => position !== index))}>Supprimer</button></fieldset>)}</div>{errors.instructions ? <p className="v2-error">{errors.instructions}</p> : null}<Button type="button" variant="outline" onClick={() => setInstructions((current) => [...current, emptyInstruction()])}>Ajouter une consigne</Button></Card>
         {storageError ? <p className="v2-info" role="alert">{storageError}</p> : null}<Button type="submit">{readAccount().offerLabel ? "Enregistrer et payer" : "Enregistrer et choisir une offre"} <span aria-hidden="true">→</span></Button>
@@ -459,31 +460,10 @@ function PaymentBody({ navigate, back, pageRef, getToken, user }) {
     try {
       const next = readAccount();
       const payload = campaignPayload(next);
-      const shots = payload.screenshots || [];
-      const total = (payload.logo ? 1 : 0) + shots.length;
-      let done = 0;
-      if (payload.logo && !isHostedMedia(payload.logo)) {
-        setStatus(`Envoi des visuels (${done}/${total})…`);
-        payload.logo = await hostMediaValueSoft(getToken, payload.logo, "logo.jpg");
-      }
-      done += 1;
-      const hostedShots = [];
-      for (let index = 0; index < shots.length; index += 1) {
-        setStatus(`Envoi des visuels (${done}/${total})…`);
-        if (isHostedMedia(shots[index])) {
-          hostedShots.push(shots[index]);
-        } else {
-          hostedShots.push(await hostMediaValueSoft(getToken, shots[index], `capture-${index + 1}.jpg`));
-        }
-        done += 1;
-      }
-      payload.screenshots = hostedShots.filter(Boolean);
+      // Ne jamais bloquer le paiement sur l’upload : seulement les URLs déjà hébergées.
+      payload.logo = isHostedMedia(payload.logo) ? payload.logo : "";
+      payload.screenshots = (payload.screenshots || []).filter((src) => isHostedMedia(src));
       payload.cover = payload.screenshots[0] || payload.logo || "";
-      writeAccount({
-        ...readAccount(),
-        projectLogo: payload.logo,
-        projectScreens: payload.screenshots,
-      });
       const common = {
         ...payload,
         offerLabel: next.offerLabel,

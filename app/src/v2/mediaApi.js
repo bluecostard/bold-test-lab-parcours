@@ -67,11 +67,11 @@ export function forgetBlobFile(url) {
   if (url) pending.delete(url);
 }
 
-export async function imageFileToJpeg(file, maxSize = 1280) {
+export async function imageFileToJpeg(file, maxSize = 960) {
   if (!file) throw new Error("Fichier manquant.");
   let bitmap;
   try {
-    bitmap = await createImageBitmap(file);
+    bitmap = await withTimeout(createImageBitmap(file), 15000, "Lecture de l’image trop lente.");
   } catch {
     const dataUrl = await new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -95,7 +95,7 @@ export async function imageFileToJpeg(file, maxSize = 1280) {
     if (!context) throw new Error("Compression de l’image impossible.");
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
     const blob = await new Promise((resolve, reject) => {
-      canvas.toBlob((value) => (value ? resolve(value) : reject(new Error("Compression de l’image impossible."))), "image/jpeg", 0.85);
+      canvas.toBlob((value) => (value ? resolve(value) : reject(new Error("Compression de l’image impossible."))), "image/jpeg", 0.72);
     });
     const base = String(file.name || "image").replace(/\.[^.]+$/, "") || "image";
     return new File([blob], `${base}.jpg`, { type: "image/jpeg" });
@@ -108,23 +108,30 @@ export function previewUrl(file) {
   return file ? URL.createObjectURL(file) : "";
 }
 
+function originUrl() {
+  return typeof window !== "undefined" ? window.location.origin : "";
+}
+
 async function fileToBase64(file) {
-  const buffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  const chunk = 0x8000;
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Lecture du fichier impossible."));
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.readAsDataURL(file);
+  });
+  const comma = dataUrl.indexOf(",");
+  if (comma < 0) throw new Error("Lecture du fichier impossible.");
+  return dataUrl.slice(comma + 1);
 }
 
 async function uploadMediaViaServer(getToken, file, kind) {
   const token = getToken ? await getToken() : "";
   if (!token) throw new Error("Connectez-vous pour envoyer un fichier.");
+  if (file.size > 3 * 1024 * 1024) {
+    throw new Error("Image trop lourde pour l’envoi serveur.");
+  }
   const data = await fileToBase64(file);
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const response = await fetch(`${origin}/api/media`, {
+  const response = await fetch(`${originUrl()}/api/media`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -143,7 +150,9 @@ async function uploadMediaViaServer(getToken, file, kind) {
   } catch {
     payload = {};
   }
-  if (!response.ok) throw new Error(payload.error || "Envoi impossible.");
+  if (!response.ok) {
+    throw new Error(payload.error || `Envoi impossible (${response.status}).`);
+  }
   if (!payload.url) throw new Error("Envoi impossible.");
   return { name: file.name, url: payload.url };
 }
@@ -151,12 +160,11 @@ async function uploadMediaViaServer(getToken, file, kind) {
 async function uploadMediaViaBlobClient(getToken, file, type) {
   const token = getToken ? await getToken() : "";
   if (!token) throw new Error("Connectez-vous pour envoyer un fichier.");
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
   const safe = String(file.name || type).replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 80) || type;
   const blob = await upload(`media/${type}/${safe}`, file, {
     access: "public",
-    handleUploadUrl: `${origin}/api/upload`,
-    multipart: file.size > 4 * 1024 * 1024,
+    handleUploadUrl: `${originUrl()}/api/upload`,
+    multipart: false,
     headers: { Authorization: `Bearer ${token}` },
     clientPayload: JSON.stringify({ kind: type }),
   });
@@ -172,9 +180,8 @@ export async function uploadMedia(getToken, file, kind = "image") {
     if (!mime.startsWith("image/") && !/\.(jpe?g|png|webp|gif|heic|heif)$/i.test(file.name || "")) {
       throw new Error("Choisissez une image JPG, PNG, WebP ou HEIC.");
     }
-    if (mime !== "image/jpeg" && mime !== "image/png" && mime !== "image/webp" && mime !== "image/gif") {
-      ready = await imageFileToJpeg(file);
-    }
+    // Toujours recompresser : HEIC iPhone + taille API Vercel.
+    ready = await imageFileToJpeg(file, 960);
     type = "image";
   }
   const max = type === "video" ? videoMax : imageMax;
@@ -185,12 +192,31 @@ export async function uploadMedia(getToken, file, kind = "image") {
     throw new Error("Choisissez une vidéo MP4 ou MOV.");
   }
 
-  // Sur iPhone, l’upload client Vercel Blob bloque souvent dans la WebView :
-  // les images passent par /api/media (PUT serveur).
-  const job = type === "video"
-    ? uploadMediaViaBlobClient(getToken, ready, type)
-    : uploadMediaViaServer(getToken, ready, type);
-  return withTimeout(job, 45000, "Envoi de l’image trop lent. Vérifiez la connexion et réessayez.");
+  if (type === "video") {
+    return withTimeout(
+      uploadMediaViaBlobClient(getToken, ready, type),
+      60000,
+      "Envoi de la vidéo trop lent. Réessayez.",
+    );
+  }
+
+  try {
+    return await withTimeout(
+      uploadMediaViaBlobClient(getToken, ready, type),
+      35000,
+      "Envoi trop lent (client).",
+    );
+  } catch (clientError) {
+    try {
+      return await withTimeout(
+        uploadMediaViaServer(getToken, ready, type),
+        35000,
+        "Envoi trop lent (serveur).",
+      );
+    } catch (serverError) {
+      throw new Error(serverError.message || clientError.message || "Envoi impossible.");
+    }
+  }
 }
 
 export async function hostMediaValue(getToken, value, name, kind = "image") {
@@ -207,16 +233,14 @@ export async function hostMediaValue(getToken, value, name, kind = "image") {
   return "";
 }
 
-/** Comme hostMediaValue, mais ne bloque pas : en cas d’échec renvoie "" ou l’URL déjà hébergée. */
+/** Ne bloque pas le paiement : URL hébergée ou chaîne vide. */
 export async function hostMediaValueSoft(getToken, value, name, kind = "image") {
+  if (!value) return "";
+  if (isHostedMedia(value)) return hostedMediaUrl(value);
   try {
-    return await withTimeout(
-      hostMediaValue(getToken, value, name, kind),
-      50000,
-      "Envoi trop lent.",
-    );
+    return await withTimeout(hostMediaValue(getToken, value, name, kind), 20000, "Envoi trop lent.");
   } catch {
-    return isHostedMedia(value) ? hostedMediaUrl(value) : "";
+    return "";
   }
 }
 

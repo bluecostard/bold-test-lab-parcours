@@ -2,7 +2,7 @@ import { put } from "@vercel/blob";
 import { readClerkUser } from "../lib/clerkAuth.js";
 
 const imageTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-const maxBytes = 10 * 1024 * 1024;
+const maxBytes = 4 * 1024 * 1024;
 
 function cleanName(value) {
   return String(value || "image.jpg").replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 80) || "image.jpg";
@@ -14,12 +14,17 @@ export default async function handler(req, res) {
   const user = await readClerkUser(req);
   if (!user) return res.status(401).json({ error: "Connectez-vous pour envoyer un fichier." });
 
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    console.log("media-put", "missing-BLOB_READ_WRITE_TOKEN");
+    return res.status(503).json({ error: "Stockage images indisponible (config Blob)." });
+  }
+
   const body = req.body || {};
   const contentType = String(body.contentType || "image/jpeg").toLowerCase();
   if (!imageTypes.has(contentType)) {
     return res.status(400).json({ error: "Choisissez une image JPG, PNG, WebP ou GIF." });
   }
-  const data = String(body.data || "");
+  const data = String(body.data || "").replace(/\s/g, "");
   if (!data) return res.status(400).json({ error: "Fichier manquant." });
 
   let buffer;
@@ -29,17 +34,19 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Fichier illisible." });
   }
   if (!buffer.length) return res.status(400).json({ error: "Fichier manquant." });
-  if (buffer.length > maxBytes) return res.status(400).json({ error: "L’image dépasse 10 Mo." });
+  if (buffer.length > maxBytes) return res.status(400).json({ error: "L’image est trop lourde. Essayez une photo plus légère." });
 
   try {
     const blob = await put(`media/image/${cleanName(body.name)}`, buffer, {
       access: "public",
       contentType,
       addRandomSuffix: true,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
     });
     return res.status(200).json({ url: blob.url, name: cleanName(body.name) });
   } catch (error) {
-    console.log("media-put", String(error?.message || error).slice(0, 180));
-    return res.status(400).json({ error: "Envoi impossible." });
+    const message = String(error?.message || error).slice(0, 180);
+    console.log("media-put", message);
+    return res.status(400).json({ error: `Envoi impossible : ${message}` });
   }
 }
