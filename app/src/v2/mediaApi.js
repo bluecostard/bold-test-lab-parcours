@@ -67,7 +67,14 @@ export function forgetBlobFile(url) {
   if (url) pending.delete(url);
 }
 
-export async function imageFileToJpeg(file, maxSize = 960) {
+/** Presets : captures nettes pour le cadre téléphone ; logo plus léger. */
+export const IMAGE_PRESETS = {
+  logo: { maxSize: 1000, quality: 0.88 },
+  screenshot: { maxSize: 1800, quality: 0.92 },
+  image: { maxSize: 1600, quality: 0.9 },
+};
+
+export async function imageFileToJpeg(file, maxSize = 1600, quality = 0.9) {
   if (!file) throw new Error("Fichier manquant.");
   let bitmap;
   try {
@@ -93,15 +100,36 @@ export async function imageFileToJpeg(file, maxSize = 960) {
     canvas.height = Math.max(1, Math.round(bitmap.height * scale));
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Compression de l’image impossible.");
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
     const blob = await new Promise((resolve, reject) => {
-      canvas.toBlob((value) => (value ? resolve(value) : reject(new Error("Compression de l’image impossible."))), "image/jpeg", 0.72);
+      canvas.toBlob(
+        (value) => (value ? resolve(value) : reject(new Error("Compression de l’image impossible."))),
+        "image/jpeg",
+        quality,
+      );
     });
     const base = String(file.name || "image").replace(/\.[^.]+$/, "") || "image";
     return new File([blob], `${base}.jpg`, { type: "image/jpeg" });
   } finally {
     if (typeof bitmap.close === "function") bitmap.close();
   }
+}
+
+/** Une seule passe JPEG (évite la double compression aperçu + upload). */
+export async function prepareImageFile(file, kind = "screenshot") {
+  const preset = IMAGE_PRESETS[kind] || IMAGE_PRESETS.image;
+  let ready = await imageFileToJpeg(file, preset.maxSize, preset.quality);
+  // Corps JSON Vercel ~4,5 Mo : base64 ≈ +33 % → rester sous ~2,4 Mo fichier.
+  let maxEdge = preset.maxSize;
+  let q = preset.quality;
+  while (ready.size > 2.4 * 1024 * 1024 && (maxEdge > 1000 || q > 0.78)) {
+    maxEdge = Math.max(1000, Math.round(maxEdge * 0.85));
+    q = Math.max(0.78, q - 0.04);
+    ready = await imageFileToJpeg(file, maxEdge, q);
+  }
+  return ready;
 }
 
 export function previewUrl(file) {
@@ -171,17 +199,24 @@ async function uploadMediaViaBlobClient(getToken, file, type) {
   return { name: file.name, url: publicMediaUrl(blob.url) };
 }
 
-export async function uploadMedia(getToken, file, kind = "image") {
+/**
+ * @param {string} [kind] — "logo" | "screenshot" | "image" | "video"
+ * @param {{ prepared?: boolean }} [options] — prepared: fichier déjà passé par prepareImageFile
+ */
+export async function uploadMedia(getToken, file, kind = "image", options = {}) {
   if (!file) throw new Error("Fichier manquant.");
   let ready = file;
-  let type = fileKind(file, kind);
+  const role = kind === "logo" || kind === "screenshot" ? kind : fileKind(file, kind);
+  let type = role === "video" ? "video" : "image";
   if (type === "image") {
     const mime = String(file.type || "").toLowerCase();
     if (!mime.startsWith("image/") && !/\.(jpe?g|png|webp|gif|heic|heif)$/i.test(file.name || "")) {
       throw new Error("Choisissez une image JPG, PNG, WebP ou HEIC.");
     }
-    // Toujours recompresser : HEIC iPhone + limite body Vercel (~4,5 Mo).
-    ready = await imageFileToJpeg(file, 720);
+    // Une seule compression : ne pas recompresser un JPEG déjà préparé.
+    if (!options.prepared) {
+      ready = await prepareImageFile(file, role === "logo" ? "logo" : "screenshot");
+    }
     type = "image";
   }
   const max = type === "video" ? videoMax : imageMax;

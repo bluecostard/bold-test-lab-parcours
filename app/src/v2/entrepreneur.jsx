@@ -9,8 +9,8 @@ import { finishAppleProduct, isNativeIos, purchaseAppleProduct } from "./nativeP
 import { formatOfferPrice, formatStoredOfferPrice, offers } from "./data.js";
 import {
   forgetBlobFile,
-  imageFileToJpeg,
   isHostedMedia,
+  prepareImageFile,
   previewUrl,
   rememberBlobFile,
   snapshotFiles,
@@ -214,13 +214,13 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
     setImageError("");
     let local = "";
     try {
-      // HEIC iPhone : aperçu blob brut souvent vide dans WKWebView — JPEG d’abord.
-      const jpeg = await imageFileToJpeg(file, 720);
+      // HEIC iPhone : une seule passe JPEG (aperçu = fichier envoyé).
+      const jpeg = await prepareImageFile(file, "logo");
       local = previewUrl(jpeg);
       rememberBlobFile(local, jpeg);
       setLogo(local);
       if (getToken) {
-        const uploaded = await uploadMedia(getToken, jpeg, "image");
+        const uploaded = await uploadMedia(getToken, jpeg, "logo", { prepared: true });
         forgetBlobFile(local);
         URL.revokeObjectURL(local);
         setLogo(uploaded.url);
@@ -254,12 +254,12 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
     for (const file of files) {
       let local = "";
       try {
-        const jpeg = await imageFileToJpeg(file);
+        const jpeg = await prepareImageFile(file, "screenshot");
         local = previewUrl(jpeg);
         rememberBlobFile(local, jpeg);
         setScreens((current) => [...current, local]);
         if (getToken) {
-          const uploaded = await uploadMedia(getToken, jpeg, "image");
+          const uploaded = await uploadMedia(getToken, jpeg, "screenshot", { prepared: true });
           forgetBlobFile(local);
           URL.revokeObjectURL(local);
           setScreens((current) => current.map((src) => (src === local ? uploaded.url : src)));

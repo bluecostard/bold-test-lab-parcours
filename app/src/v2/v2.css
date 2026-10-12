@@ -100,6 +100,7 @@
 .v2-phone-frame video {
   position: absolute; inset: 0; display: block; width: 100%; height: 100%;
   object-fit: cover; object-position: top;
+  image-rendering: auto;
 }
 button.v2-phone-frame { padding: 0; color: inherit; cursor: pointer; }
 .v2-button {
