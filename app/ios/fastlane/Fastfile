@@ -42,6 +42,18 @@ platform :ios do
     sh("security set-keychain-settings -t 3600 -l #{keychain_path.shellescape}")
     sh("security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k #{keychain_password.shellescape} #{keychain_path.shellescape} || true")
 
+    # Push (aps-environment) doit être actif sur l’App ID avant le profil.
+    produce(
+      api_key: api_key,
+      app_identifier: "online.gemelo.app",
+      app_name: "Gemelo",
+      skip_itc: true,
+      skip_devcenter: false,
+      enable_services: {
+        push_notification: "on"
+      }
+    )
+
     sigh(
       api_key: api_key,
       app_identifier: "online.gemelo.app",
