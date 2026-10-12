@@ -72,6 +72,7 @@ export const legalPages = {
     body: [
       "Dernière mise à jour : 12 octobre 2026.",
       "Cette page décrit les données traitées par Gemelo, service accessible à gemelo.online. Elle vaut politique de confidentialité.",
+
       "Responsable. Blue Costard Compagnie (SIRET 109 416 958 00014), éditeur de Gemelo, joignable via gemelo.online/contact/, Réglages → Contact, ou Instagram et TikTok @bluecostard.",
       "Âge. Le service est réservé aux personnes de 16 ans et plus. La confirmation d’âge est enregistrée sur l’appareil.",
       "Compte. La connexion est assurée par Clerk. Clerk reçoit le nom, l’e-mail et un identifiant de compte. Sans compte, vous pouvez consulter le site ; tester et payer exigent une connexion.",

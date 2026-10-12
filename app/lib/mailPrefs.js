@@ -4,6 +4,21 @@ import { get, put } from "@vercel/blob";
 const access = "private";
 const pathname = "mail/prefs.json";
 
+/**
+ * E-mails transactionnels — pas d’opt-out dans Réglages.
+ * 1 bienvenue · 2 confirmation campagne · 3 question sur avis · 4 nouveau message DM · 5 modif/annulation créneau
+ */
+export const MANDATORY_MAILS = [
+  "welcome",
+  "campaign-paid",
+  "review-question",
+  "direct-message",
+  "booking-change",
+];
+
+/** E-mails gérables dans Réglages → Notifications. */
+export const OPTIONAL_MAIL_KEYS = ["campaigns", "ranking", "closing"];
+
 function emptyPrefs() {
   return {
     subscribers: {},

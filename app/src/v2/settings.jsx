@@ -122,7 +122,9 @@ function NotificationsCard({ navigate }) {
 
   return (
     <form className="v2-stack" onSubmit={save}>
-      <p className="v2-muted">Choisissez les messages Gemelo que vous souhaitez recevoir. Le mail de bienvenue n’est envoyé qu’à l’inscription.</p>
+      <p className="v2-muted">
+        Facultatifs — vous pouvez les couper. Les e-mails obligatoires (bienvenue, confirmation de campagne, question sur un avis, nouveau message, modification ou annulation de créneau) partent toujours.
+      </p>
       <label className="v2-consent">
         <input type="checkbox" checked={prefs.campaigns} disabled={!ready} onChange={(event) => setPrefs((current) => ({ ...current, campaigns: event.target.checked }))} />
         Nouvelle campagne de test
