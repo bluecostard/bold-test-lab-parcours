@@ -16,13 +16,14 @@ import {
   snapshotFiles,
   uploadMedia,
 } from "./mediaApi.js";
+import { mapSocials, SOCIAL_NETWORKS } from "../../lib/campaignDraft.js";
 import { publishCampaign } from "./campaignsApi.js";
 import { listReviews } from "./reviewsApi.js";
 import { hasPaidCampaign } from "./state.js";
 import { BackButton, Button, Card, EntrepreneurNav, Field, Header, PageShell, SectionTitle, Tags } from "./primitives.jsx";
 
 const categories = ["Alimentation", "Bien-être", "Écoresponsable", "Maison", "Nature", "Santé", "Technologie", "Voyage"];
-const networks = ["Instagram", "TikTok", "Facebook", "LinkedIn", "YouTube", "X"];
+const networks = SOCIAL_NETWORKS;
 const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const emptySocial = () => ({ platform: "", url: "" });
 const emptyInstruction = () => ({ title: "", text: "" });
@@ -542,7 +543,7 @@ function campaignPayload(account) {
     appStore: account.projectAppStore || "",
     playStore: account.projectPlayStore || "",
     productLinks: buildProductLinks(account),
-    socials: account.projectSocials || [],
+    socials: mapSocials(account.projectSocials || []),
     instructions: (account.projectInstructions || []).map((item) => item.text || item.title).filter(Boolean),
     offerLabel: account.offerLabel,
     offerRange: account.offerRange,

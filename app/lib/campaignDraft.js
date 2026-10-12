@@ -8,15 +8,25 @@ function shortMedia(value) {
   return publicMediaUrl(value) || hostedMediaUrl(value, 500);
 }
 
-const socialIcons = { Instagram: "◎", TikTok: "♪", Facebook: "f", LinkedIn: "in", YouTube: "▶", X: "X" };
+/** Ordre produit / maquette campagne : toujours les 6, même sans URL. */
+export const SOCIAL_NETWORKS = ["Instagram", "TikTok", "Facebook", "LinkedIn", "YouTube", "X"];
 
+/**
+ * Normalise les réseaux entrepreneur → affichage campagne.
+ * Tous les réseaux de la liste apparaissent ; href null si non renseigné.
+ */
 export function mapSocials(list) {
-  return (Array.isArray(list) ? list : []).map((item) => {
+  const byLabel = new Map();
+  for (const item of Array.isArray(list) ? list : []) {
     const label = clean(item.label || item.platform, 40);
+    if (!SOCIAL_NETWORKS.includes(label)) continue;
     const href = clean(item.href || item.url, 300);
-    if (!label) return null;
-    return { label, href: href || null, icon: item.icon || socialIcons[label] || "◎" };
-  }).filter(Boolean).slice(0, 8);
+    byLabel.set(label, href || null);
+  }
+  return SOCIAL_NETWORKS.map((label) => ({
+    label,
+    href: byLabel.get(label) || null,
+  }));
 }
 
 function mapProductLink(item) {

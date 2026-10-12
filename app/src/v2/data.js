@@ -20,11 +20,12 @@ export const campaigns = [
       { label: "Visiter le site", detail: "Découvrir Bed Hop sur le web", href: "https://bedhop.online", icon: "◎" },
     ],
     socials: [
-      { label: "Instagram", href: "https://www.instagram.com/bedhop26", icon: "◎" },
-      { label: "TikTok", href: null, icon: "♪" },
-      { label: "Facebook", href: null, icon: "f" },
-      { label: "LinkedIn", href: null, icon: "in" },
-      { label: "YouTube", href: null, icon: "▶" },
+      { label: "Instagram", href: "https://www.instagram.com/bedhop26" },
+      { label: "TikTok", href: null },
+      { label: "Facebook", href: null },
+      { label: "LinkedIn", href: null },
+      { label: "YouTube", href: null },
+      { label: "X", href: null },
     ],
     founderPitch: {
       src: "/visuels/pitch-fondateur-bedhop.mp4",

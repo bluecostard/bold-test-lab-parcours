@@ -26,6 +26,7 @@ import {
   SectionTitle,
   Tags,
 } from "./primitives.jsx";
+import { CampaignSocialList } from "./socialIcons.jsx";
 
 function scrollRailTo(rail, index) {
   if (!rail) return;
@@ -471,7 +472,10 @@ export function CampaignScreen({ campaign, navigate, back, pageRef, interceptBac
           </Card>
         ) : null}
         {campaign.productLinks ? <Card><SectionTitle icon="↗" title="Accéder au produit" description={`Ouvrez ${campaign.name} sur la plateforme de votre choix.`} /><ul className="v2-link-list">{campaign.productLinks.map((link) => <li key={link.label}><a href={link.href} target="_blank" rel="noreferrer"><span className="v2-link-icon" aria-hidden="true">{link.icon}</span><span><strong>{link.label}</strong><small>{link.detail}</small></span><span aria-hidden="true">↗</span></a></li>)}</ul></Card> : null}
-        {campaign.socials ? <Card><SectionTitle icon="⌘" title="Réseaux de l’entrepreneur" description={`Suivez ${campaign.name} sur ses réseaux pour rester informé.`} /><ul className="v2-socials">{campaign.socials.map((social) => <li key={social.label}>{social.href ? <a href={social.href} target="_blank" rel="noreferrer" aria-label={`${social.label} de ${campaign.name}`}><span aria-hidden="true">{social.icon}</span>{social.label}</a> : <span className="is-disabled" aria-disabled="true"><span aria-hidden="true">{social.icon}</span>{social.label}</span>}</li>)}</ul></Card> : null}
+        <Card>
+          <SectionTitle icon="⌘" title="Réseaux de l’entrepreneur" description={`Suivez ${campaign.name} sur ses réseaux pour rester informé.`} />
+          <CampaignSocialList socials={campaign.socials} name={campaign.name} />
+        </Card>
         <CampaignInstructions campaign={campaign} />
         <Card><SectionTitle icon="●" title="Votre retour" description="Une fois votre test réalisé, partagez votre avis." /><Button type="button" onClick={() => navigate("review", { campaignId: campaign.id })}>Donner mon avis <span aria-hidden="true">→</span></Button><p className="v2-helper">Votre brouillon reste sur cet appareil.</p></Card>
       </main>
