@@ -22,11 +22,20 @@ function withTimeout(promise, ms, message) {
 export async function purchaseAppleProduct(productId) {
   try {
     const GemeloIap = await iapPlugin();
-    if (!GemeloIap?.purchase) throw new Error("Achats Apple indisponibles dans cette version. Mettez Gemelo à jour via TestFlight.");
+    if (!GemeloIap?.purchase) {
+      throw new Error("Achats Apple indisponibles dans cette version. Mettez Gemelo à jour via TestFlight.");
+    }
+    if (typeof GemeloIap.ping === "function") {
+      try {
+        await withTimeout(GemeloIap.ping(), 5000, "Plugin App Store muet.");
+      } catch {
+        throw new Error("Le module App Store n’est pas chargé. Installez la dernière build TestFlight.");
+      }
+    }
     return await withTimeout(
       GemeloIap.purchase({ productId }),
-      90000,
-      "La fenêtre App Store ne s’est pas ouverte. Fermez Gemelo, rouvrez-la, puis réessayez. Compte Sandbox requis dans Réglages → App Store.",
+      130000,
+      "La fenêtre App Store ne s’est pas ouverte. Compte Sandbox : Réglages → App Store → Sandbox. Puis rouvrez Gemelo.",
     );
   } catch (error) {
     throw new Error(pluginMessage(error));

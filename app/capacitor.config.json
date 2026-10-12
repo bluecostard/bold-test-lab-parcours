@@ -32,5 +32,11 @@
       "style": "DARK",
       "backgroundColor": "#071426"
     }
-  }
+  },
+  "packageClassList": [
+    "AppPlugin",
+    "SplashScreenPlugin",
+    "StatusBarPlugin",
+    "GemeloIapPlugin"
+  ]
 }
