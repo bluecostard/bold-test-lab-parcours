@@ -163,15 +163,26 @@ function ProjectSummary({ account }) {
 }
 
 export function EntrepreneurFormScreen(props) {
-  return clerkKey ? <EntrepreneurFormAuthed {...props} /> : <EntrepreneurFormBody {...props} getToken={null} />;
+  return clerkKey ? <EntrepreneurFormAuthed {...props} /> : <EntrepreneurFormBody {...props} mode="campaign" getToken={null} />;
+}
+
+/** Projet testeur (Communauté / top 10) — sans offre, créneau ni paiement. */
+export function ProjectEditScreen(props) {
+  return clerkKey ? <ProjectEditAuthed {...props} /> : <EntrepreneurFormBody {...props} mode="community" getToken={null} />;
 }
 
 function EntrepreneurFormAuthed(props) {
   const { getToken } = useAuth();
-  return <EntrepreneurFormBody {...props} getToken={getToken} />;
+  return <EntrepreneurFormBody {...props} mode="campaign" getToken={getToken} />;
 }
 
-function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
+function ProjectEditAuthed(props) {
+  const { getToken } = useAuth();
+  return <EntrepreneurFormBody {...props} mode="community" getToken={getToken} />;
+}
+
+function EntrepreneurFormBody({ navigate, back, pageRef, getToken, mode = "campaign" }) {
+  const community = mode === "community";
   const saved = readAccount();
   const paid = hasPaidCampaign();
   const [name, setName] = useState(saved.projectName || "");
@@ -296,7 +307,7 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
     else if (tags.length > MAX_TAGS) next.tags = `Maximum ${MAX_TAGS} catégories.`;
     if (socials.length > 6) next.socials = "Vous pouvez indiquer jusqu’à 6 réseaux.";
     const filledSocials = socials.filter((social) => social.platform || social.url.trim());
-    if (!filledSocials.length) next.socials = "Ajoutez au moins 1 réseau avec un lien valide.";
+    if (!community && !filledSocials.length) next.socials = "Ajoutez au moins 1 réseau avec un lien valide.";
     const selected = socials.map((social) => social.platform).filter(Boolean);
     if (new Set(selected).size !== selected.length) next.socials = "Chaque réseau doit être unique.";
     socials.forEach((social, index) => {
@@ -305,11 +316,13 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
       if (!social.platform) next[`social-platform-${index}`] = "Choisissez un réseau.";
       if (!validUrl(social.url)) next[`social-url-${index}`] = "URL complète invalide.";
     });
-    if (!instructions.length) next.instructions = "Ajoutez au moins une consigne.";
-    instructions.forEach((instruction, index) => {
-      if (!instruction.title.trim()) next[`instruction-title-${index}`] = "Titre obligatoire.";
-      if (!instruction.text.trim()) next[`instruction-text-${index}`] = "Texte obligatoire.";
-    });
+    if (!community) {
+      if (!instructions.length) next.instructions = "Ajoutez au moins une consigne.";
+      instructions.forEach((instruction, index) => {
+        if (!instruction.title.trim()) next[`instruction-title-${index}`] = "Titre obligatoire.";
+        if (!instruction.text.trim()) next[`instruction-text-${index}`] = "Texte obligatoire.";
+      });
+    }
     if (logo && !isHostedMedia(logo)) next.logo = "Attendez la fin de l’envoi du logo (ou réessayez).";
     if (screens.some((src) => src && !isHostedMedia(src))) next.screens = "Attendez la fin de l’envoi des captures (ou réessayez).";
     setErrors(next);
@@ -318,8 +331,9 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
     if (Object.keys(next).length) return;
     const nextTags = tags.slice(0, MAX_TAGS);
     try {
-      writeAccount({
-        ...readAccount(),
+      const current = readAccount();
+      const nextAccount = {
+        ...current,
         projectName: name.trim(),
         projectPitch: pitch.trim(),
         projectLink: link.trim(),
@@ -332,9 +346,17 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
         projectSocials: socials
           .filter((item) => item.platform && validUrl(item.url))
           .map((item) => ({ platform: item.platform, url: item.url.trim() })),
-        projectInstructions: instructions.map((item) => ({ title: item.title.trim(), text: item.text.trim() })),
-        projectSteps: instructions.map((item) => item.text.trim()).join("\n\n"),
-      });
+      };
+      if (!community) {
+        nextAccount.projectInstructions = instructions.map((item) => ({ title: item.title.trim(), text: item.text.trim() }));
+        nextAccount.projectSteps = instructions.map((item) => item.text.trim()).join("\n\n");
+      }
+      writeAccount(nextAccount);
+      if (community) {
+        setSaveStatus("Projet enregistré.");
+        navigate("profile", {}, true);
+        return;
+      }
       if (paid) {
         if (!getToken) {
           navigate("login", { from: "entrepreneur" });
@@ -355,6 +377,8 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
     } catch (error) {
       if (error?.name === "QuotaExceededError" || error?.code === 22) {
         setStorageError("Stockage local saturé. Supprimez des captures ou choisissez des images plus légères.");
+      } else if (community) {
+        setStorageError("Impossible d’enregistrer le projet sur cet appareil.");
       } else if (paid) {
         setStorageError(error?.message || "Impossible de mettre à jour la campagne en ligne.");
       } else {
@@ -366,23 +390,36 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
     }
   }
 
-  const ctaLabel = paid
-    ? "Enregistrer les modifications"
-    : readAccount().offerLabel
-      ? "Enregistrer et payer"
-      : "Enregistrer et choisir une offre";
+  const ctaLabel = community
+    ? "Enregistrer mon projet"
+    : paid
+      ? "Enregistrer les modifications"
+      : readAccount().offerLabel
+        ? "Enregistrer et payer"
+        : "Enregistrer et choisir une offre";
 
   return (
     <PageShell pageRef={pageRef}>
       <form className="v2-stack v2-business-form" onSubmit={save} noValidate>
         <BackButton onClick={back} />
         <div>
-          <h1>Créer ou modifier <span className="v2-accent">ma campagne</span></h1>
-          <p className="v2-muted">
-            {paid
-              ? "Ajustez photos, liens et consignes. Votre créneau est déjà payé — aucun nouveau paiement."
-              : "Ces informations composent la page visible par les testeurs."}
-          </p>
+          {community ? (
+            <>
+              <h1>Ajouter ou modifier <span className="v2-accent">mon projet</span></h1>
+              <p className="v2-muted">
+                Présentez votre projet dans la Communauté lorsque vous êtes dans le top 10. Gratuit — sans offre, sans créneau, sans paiement.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1>Créer ou modifier <span className="v2-accent">ma campagne</span></h1>
+              <p className="v2-muted">
+                {paid
+                  ? "Ajustez photos, liens et consignes. Votre créneau est déjà payé — aucun nouveau paiement."
+                  : "Ces informations composent la page visible par les testeurs pendant votre créneau payant."}
+              </p>
+            </>
+          )}
         </div>
         <Card>
           <SectionTitle title="Identité du projet" />
@@ -415,7 +452,9 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
           <SectionTitle
             icon="↗"
             title="Accéder au produit"
-            description="Les testeurs ouvrent votre produit depuis ces liens (comme sur la page campagne)."
+            description={community
+              ? "Les membres de la Communauté ouvrent votre projet depuis ces liens."
+              : "Les testeurs ouvrent votre produit depuis ces liens (comme sur la page campagne)."}
           />
           <Field label="Site web" error={errors.link}>
             <input type="url" placeholder="https://" value={link} onChange={(event) => setLink(event.target.value)} />
@@ -428,8 +467,10 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken }) {
           </Field>
         </Card>
         <Card><SectionTitle title="Visuels" description="Logo entier et jusqu’à 6 captures. JPG, PNG, WebP ou photo iPhone." /><div className="v2-logo-editor">{logo ? <img src={logo} alt="Aperçu du logo" /> : <span className="v2-logo-placeholder">Logo</span>}<div><Button type="button" variant="outline" onClick={() => logoInput.current?.click()}>{logo ? "Remplacer" : "Ajouter un logo"}</Button>{logo ? <button type="button" className="v2-text-button" onClick={() => setLogo("")}>Supprimer</button> : null}</div></div><input ref={logoInput} className="v2-hidden-input" type="file" accept="image/*,.heic,.heif" onChange={chooseLogo} /><div className="v2-capture-list">{screens.map((src, index) => <figure key={`${src.slice(-24)}-${index}`}><img src={src} alt={`Capture ${index + 1}`} /><button type="button" onClick={() => setScreens((current) => current.filter((_, position) => position !== index))} aria-label={`Supprimer la capture ${index + 1}`}>×</button></figure>)}</div><Button type="button" variant="outline" disabled={screens.length >= 6} onClick={() => screenInput.current?.click()}>Ajouter des captures ({screens.length}/6)</Button><input ref={screenInput} className="v2-hidden-input" type="file" accept="image/*,.heic,.heif" multiple onChange={chooseScreens} />{imageError ? <p className="v2-error" role="alert">{imageError}</p> : null}{errors.logo ? <p className="v2-error" role="alert">{errors.logo}</p> : null}{errors.screens ? <p className="v2-error" role="alert">{errors.screens}</p> : null}</Card>
-        <Card><SectionTitle title="Réseaux sociaux" description="Au moins 1 réseau avec une URL réelle ; les autres sont facultatifs (max. 6)." /><div className="v2-repeat-list">{socials.map((social, index) => <fieldset key={index}><legend>Réseau {index + 1}</legend><label className="v2-field"><span>Plateforme</span><select value={social.platform} onChange={(event) => setSocials((current) => current.map((item, position) => position === index ? { ...item, platform: event.target.value } : item))}><option value="">Choisir</option>{networks.map((network) => <option key={network} disabled={socials.some((item, position) => position !== index && item.platform === network)}>{network}</option>)}</select>{errors[`social-platform-${index}`] ? <small>{errors[`social-platform-${index}`]}</small> : null}</label><Field label="URL" error={errors[`social-url-${index}`]}><input type="url" placeholder="https://" value={social.url} onChange={(event) => setSocials((current) => current.map((item, position) => position === index ? { ...item, url: event.target.value } : item))} /></Field><button type="button" className="v2-text-button" onClick={() => setSocials((current) => current.filter((_, position) => position !== index))}>Supprimer</button></fieldset>)}</div>{errors.socials ? <p className="v2-error" role="alert">{errors.socials}</p> : null}<Button type="button" variant="outline" disabled={socials.length >= 6} onClick={() => setSocials((current) => [...current, emptySocial()])}>Ajouter un réseau</Button></Card>
-        <Card><SectionTitle title="Consignes" description="Chaque consigne contient un titre et un texte." /><div className="v2-repeat-list">{instructions.map((instruction, index) => <fieldset key={index}><legend>Consigne {index + 1}</legend><Field label="Titre" error={errors[`instruction-title-${index}`]}><input value={instruction.title} onChange={(event) => setInstructions((current) => current.map((item, position) => position === index ? { ...item, title: event.target.value } : item))} /></Field><Field label="Texte" error={errors[`instruction-text-${index}`]}><textarea rows={3} value={instruction.text} onChange={(event) => setInstructions((current) => current.map((item, position) => position === index ? { ...item, text: event.target.value } : item))} /></Field><button type="button" className="v2-text-button" onClick={() => setInstructions((current) => current.filter((_, position) => position !== index))}>Supprimer</button></fieldset>)}</div>{errors.instructions ? <p className="v2-error">{errors.instructions}</p> : null}<Button type="button" variant="outline" onClick={() => setInstructions((current) => [...current, emptyInstruction()])}>Ajouter une consigne</Button></Card>
+        <Card><SectionTitle title="Réseaux sociaux" description={community ? "Facultatif — jusqu’à 6 réseaux avec une URL réelle." : "Au moins 1 réseau avec une URL réelle ; les autres sont facultatifs (max. 6)."} /><div className="v2-repeat-list">{socials.map((social, index) => <fieldset key={index}><legend>Réseau {index + 1}</legend><label className="v2-field"><span>Plateforme</span><select value={social.platform} onChange={(event) => setSocials((current) => current.map((item, position) => position === index ? { ...item, platform: event.target.value } : item))}><option value="">Choisir</option>{networks.map((network) => <option key={network} disabled={socials.some((item, position) => position !== index && item.platform === network)}>{network}</option>)}</select>{errors[`social-platform-${index}`] ? <small>{errors[`social-platform-${index}`]}</small> : null}</label><Field label="URL" error={errors[`social-url-${index}`]}><input type="url" placeholder="https://" value={social.url} onChange={(event) => setSocials((current) => current.map((item, position) => position === index ? { ...item, url: event.target.value } : item))} /></Field><button type="button" className="v2-text-button" onClick={() => setSocials((current) => current.filter((_, position) => position !== index))}>Supprimer</button></fieldset>)}</div>{errors.socials ? <p className="v2-error" role="alert">{errors.socials}</p> : null}<Button type="button" variant="outline" disabled={socials.length >= 6} onClick={() => setSocials((current) => [...current, emptySocial()])}>Ajouter un réseau</Button></Card>
+        {community ? null : (
+          <Card><SectionTitle title="Consignes" description="Chaque consigne contient un titre et un texte. Elles guident les testeurs pendant votre campagne payante." /><div className="v2-repeat-list">{instructions.map((instruction, index) => <fieldset key={index}><legend>Consigne {index + 1}</legend><Field label="Titre" error={errors[`instruction-title-${index}`]}><input value={instruction.title} onChange={(event) => setInstructions((current) => current.map((item, position) => position === index ? { ...item, title: event.target.value } : item))} /></Field><Field label="Texte" error={errors[`instruction-text-${index}`]}><textarea rows={3} value={instruction.text} onChange={(event) => setInstructions((current) => current.map((item, position) => position === index ? { ...item, text: event.target.value } : item))} /></Field><button type="button" className="v2-text-button" onClick={() => setInstructions((current) => current.filter((_, position) => position !== index))}>Supprimer</button></fieldset>)}</div>{errors.instructions ? <p className="v2-error">{errors.instructions}</p> : null}<Button type="button" variant="outline" onClick={() => setInstructions((current) => [...current, emptyInstruction()])}>Ajouter une consigne</Button></Card>
+        )}
         {storageError ? <p className="v2-info" role="alert">{storageError}</p> : null}
         {saveStatus ? <p className="v2-helper" role="status">{saveStatus}</p> : null}
         <Button type="submit" disabled={busy}>

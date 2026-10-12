@@ -1543,18 +1543,22 @@ function ProfileBody({ navigate, pageRef, openDrawer, signedIn, name, avatar, si
             </div>
           </div>
           {hasProject ? (
-            <button type="button" className="v2-ghost-chip" onClick={() => navigate("entrepreneur")}>✎ Modifier mon projet</button>
+            <button type="button" className="v2-ghost-chip" onClick={() => navigate("project-edit")}>✎ Modifier mon projet</button>
           ) : (
-            <Button type="button" onClick={() => navigate("entrepreneur")}>Ajouter mon projet <span aria-hidden="true">→</span></Button>
+            <Button type="button" onClick={() => navigate("project-edit")}>
+              Ajouter mon projet <span aria-hidden="true">→</span>
+            </Button>
           )}
-          <p className="v2-helper v2-helper--left">Votre projet sera présenté dans la Communauté tant que vous serez dans le top 10.</p>
+          <p className="v2-helper v2-helper--left">
+            Visibilité Communauté (top 10) — gratuit, sans offre ni paiement. Pour une campagne testeurs, utilisez « Faire tester mon service » plus bas.
+          </p>
         </Card>
         <BookingSlotCard />
         <button className="v2-service-entry" type="button" onClick={() => navigate("offer")}>
           <span aria-hidden="true">📣</span>
           <span>
             <strong>Faire tester mon service</strong>
-            <small>Touchez des testeurs qualifiés grâce à une campagne payante, en complément de la visibilité de la Communauté.</small>
+            <small>Campagne payante (offre + créneau) pour toucher des testeurs qualifiés, en complément de la visibilité Communauté ci-dessus.</small>
           </span>
           <span aria-hidden="true">→</span>
         </button>

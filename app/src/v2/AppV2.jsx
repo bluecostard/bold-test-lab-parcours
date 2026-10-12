@@ -28,6 +28,7 @@ import {
   EntrepreneurFormScreen,
   OfferScreen,
   PaymentScreen,
+  ProjectEditScreen,
   ReportScreen,
   ResultsScreen,
 } from "./entrepreneur.jsx";
@@ -260,6 +261,7 @@ export function AppV2() {
       report: { campaignId: "bed-hop" },
       "report-check": { campaignId: "bed-hop" },
       profile: {},
+      "project-edit": {},
       confirmation: {},
       payment: {},
       besoin: {},
@@ -385,6 +387,7 @@ export function AppV2() {
     if (place.screen === "ranking") return <RankingScreen {...props} />;
     if (place.screen === "profile") return <ProfileScreen {...props} />;
     if (place.screen === "settings") return <SettingsScreen {...props} />;
+    if (place.screen === "project-edit") return <ProjectEditScreen {...props} />;
     if (place.screen === "entrepreneur") return <EntrepreneurFormScreen {...props} />;
     if (place.screen === "offer") return <OfferScreen {...props} />;
     if (place.screen === "payment") return <PaymentScreen {...props} />;
