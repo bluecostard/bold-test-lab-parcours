@@ -59,9 +59,9 @@ Le paiement Stripe reste **simulé** et étiqueté comme tel. « Compte a payé 
 | Besoin | Décision |
 |---|---|
 | Maquette 17 / avatars photo | Absents. Initiales ou logo Bed Hop `/visuels/logo-bedhop-tight.png` dans un cercle, sans débord. |
-| Vrais messages live | Démo locale uniquement. |
-| Autres correspondants | Interdit d’en inventer. |
-| Déverrouillage | Uniquement si offre + date de paiement simulé sont enregistrées. Un brouillon 04 ou un avis 06 **ne** suffit **pas**. |
+| Vrais messages live | **En service** : `/api/messages` entre propriétaires dont la campagne est payée (les deux côtés). |
+| Autres correspondants | Liste des autres propriétaires payés (pas de fil inventé). |
+| Déverrouillage | Paiement serveur (`booking.paid`). Un brouillon 04 ou un avis 06 **ne** suffit **pas**. |
 | Superdesign | Indisponible. On s’arrête si on demande un autre layout que liste + flou + bandeau bas. |
 
 ## 4. Enchaînement

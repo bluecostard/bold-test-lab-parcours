@@ -1,4 +1,4 @@
-import { get, put } from "@vercel/blob";
+import { get, list, put } from "@vercel/blob";
 
 const access = "private";
 
@@ -20,6 +20,23 @@ async function readJson(pathname) {
 export async function readBooking(userId) {
   if (!userId) return null;
   return readJson(bookingPath(userId));
+}
+
+/** Réservations payées (propriétaires de campagne). */
+export async function listPaidBookings() {
+  const listed = await list({ prefix: "bookings/", limit: 200 });
+  const bookings = [];
+  for (const blob of listed.blobs) {
+    const booking = await readJson(blob.pathname);
+    if (!booking?.userId || !booking.paid) continue;
+    bookings.push(booking);
+  }
+  return bookings;
+}
+
+export async function isPaidOwner(userId) {
+  const booking = await readBooking(userId);
+  return Boolean(booking?.paid && booking.userId);
 }
 
 export async function saveBooking(booking) {

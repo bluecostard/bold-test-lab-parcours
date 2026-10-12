@@ -696,7 +696,12 @@ button.v2-avis-frame {
   width: 100%; min-height: 64px; display: grid; grid-template-columns: 48px 1fr; gap: 12px; align-items: center;
   padding: 10px 4px; border: 0; border-bottom: 1px solid var(--v2-line); background: transparent; color: inherit; text-align: left; cursor: pointer;
 }
+.v2-inbox button:disabled { cursor: default; }
 .v2-inbox img, .v2-inbox .v2-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
+.v2-inbox .v2-avatar--mark {
+  display: grid; place-items: center; background: #10243a; color: #f4f7fb;
+  font-size: 18px; font-weight: 800; object-fit: unset;
+}
 .v2-inbox strong, .v2-inbox small { display: block; font-size: 17px; }
 .v2-inbox small { margin-top: 3px; color: var(--v2-muted); }
 .v2-inbox.is-locked { filter: blur(6px); pointer-events: none; user-select: none; }
@@ -705,9 +710,27 @@ button.v2-avis-frame {
 }
 .v2-lock-bar strong { display: block; font-size: 20px; }
 .v2-lock-bar p { margin: 8px 0 14px; font-size: 17px; color: #d5dfeb; }
-.v2-bubbles { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
-.v2-bubbles li { max-width: 80%; padding: 12px 14px; border-radius: 16px; background: #10243a; font-size: 17px; }
+.v2-lock-bar .v2-button { width: 100%; }
+.v2-peers, .v2-questions-inbox { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.v2-thread { min-height: calc(100dvh - 140px); }
+.v2-thread-head { display: flex; flex-direction: column; gap: 4px; }
+.v2-thread-head h1 { font-size: 22px; }
+.v2-bubbles { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.v2-bubbles li { max-width: 80%; padding: 12px 14px; border-radius: 16px; background: #10243a; font-size: 17px; color: #f4f7fb; }
 .v2-bubbles .is-me { align-self: flex-end; background: var(--v2-accent); color: #101d0a; }
+.v2-bubbles .v2-bubbles-empty {
+  max-width: none; align-self: stretch; background: transparent; border: 1px dashed var(--v2-line);
+  color: var(--v2-muted); text-align: center;
+}
+.v2-composer {
+  display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center;
+  margin-top: auto; padding-top: 8px;
+}
+.v2-composer input {
+  width: 100%; min-height: 48px; border: 1px solid var(--v2-line); border-radius: 12px;
+  background: #10243a; color: #f4f7fb; padding: 12px 14px; font: inherit; font-size: 17px;
+}
+.v2-composer .v2-button { min-height: 48px; }
 .v2-drawer-root { position: fixed; inset: 0; z-index: 20; }
 .v2-drawer-backdrop { position: absolute; inset: 0; border: 0; background: rgba(4, 10, 18, .55); }
 .v2-drawer {
