@@ -43,16 +43,26 @@ platform :ios do
     sh("security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k #{keychain_password.shellescape} #{keychain_path.shellescape} || true")
 
     # Push (aps-environment) doit être actif sur l’App ID avant le profil.
-    produce(
-      api_key: api_key,
-      app_identifier: "online.gemelo.app",
-      app_name: "Gemelo",
-      skip_itc: true,
-      skip_devcenter: false,
-      enable_services: {
-        push_notification: "on"
-      }
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV.fetch("APP_STORE_CONNECT_KEY_ID"),
+      issuer_id: ENV.fetch("APP_STORE_CONNECT_ISSUER_ID"),
+      key: ENV.fetch("APP_STORE_CONNECT_API_KEY")
     )
+    bundle = Spaceship::ConnectAPI.get_bundle_ids(filter: { identifier: "online.gemelo.app" }).first
+    UI.user_error!("Bundle ID online.gemelo.app introuvable") unless bundle
+    caps = Spaceship::ConnectAPI.get_bundle_id_capabilities(bundle_id_id: bundle.id)
+    has_push = caps.any? { |cap|
+      type = cap.capability_type.to_s
+      type == "PUSH_NOTIFICATIONS" || type.end_with?("PUSH_NOTIFICATIONS")
+    }
+    unless has_push
+      UI.important("Activation Push Notifications sur online.gemelo.app")
+      Spaceship::ConnectAPI.create_bundle_id_capability(
+        bundle_id_id: bundle.id,
+        capability_type: Spaceship::ConnectAPI::BundleIdCapability::Type::PUSH_NOTIFICATIONS,
+        settings: []
+      )
+    end
 
     sigh(
       api_key: api_key,
