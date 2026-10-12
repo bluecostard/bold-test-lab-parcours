@@ -544,7 +544,12 @@ function campaignPayload(account) {
     playStore: account.projectPlayStore || "",
     productLinks: buildProductLinks(account),
     socials: mapSocials(account.projectSocials || []),
-    instructions: (account.projectInstructions || []).map((item) => item.text || item.title).filter(Boolean),
+    instructions: (account.projectInstructions || [])
+      .map((item) => ({
+        title: String(item?.title || "").trim(),
+        detail: String(item?.text || item?.detail || "").trim(),
+      }))
+      .filter((item) => item.title || item.detail),
     offerLabel: account.offerLabel,
     offerRange: account.offerRange,
     offerPrice: account.offerPrice,

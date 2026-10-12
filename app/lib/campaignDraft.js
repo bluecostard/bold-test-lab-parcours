@@ -41,6 +41,20 @@ function mapProductLink(item) {
   };
 }
 
+/** Normalise une consigne entrepreneur → { title, detail } pour la page campagne. */
+export function mapInstruction(item) {
+  if (typeof item === "string") {
+    const title = clean(item, 200);
+    return title ? { title, detail: "" } : null;
+  }
+  if (!item || typeof item !== "object") return null;
+  const title = clean(item.title, 120);
+  const detail = clean(item.detail || item.text, 400);
+  if (!title && !detail) return null;
+  if (!title) return { title: detail, detail: "" };
+  return { title, detail: detail === title ? "" : detail };
+}
+
 /** Construit productLinks façon Bed Hop (App Store / Google Play / Visiter le site). */
 export function buildProductLinks(body = {}) {
   if (Array.isArray(body.productLinks) && body.productLinks.length) {
@@ -85,7 +99,7 @@ export function draftCampaign(userId, body) {
     website,
     productLinks: buildProductLinks({ ...body, name, website }),
     socials: mapSocials(body.socials),
-    instructions: Array.isArray(body.instructions) ? body.instructions.map((item) => clean(item, 200)).filter(Boolean).slice(0, 8) : [],
+    instructions: Array.isArray(body.instructions) ? body.instructions.map(mapInstruction).filter(Boolean).slice(0, 8) : [],
     appScreens: ["Accueil", "Parcours", "Confirmation"],
     kind: "app",
     live: false,

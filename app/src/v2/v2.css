@@ -203,8 +203,11 @@ img.v2-avatar { object-fit: cover; padding: 0; }
 .v2-socials .is-disabled .v2-social-brand { filter: grayscale(1); opacity: .42; }
 .v2-socials .is-disabled .v2-social-label { opacity: .75; }
 .v2-instructions { counter-reset: step; display: flex; flex-direction: column; gap: 9px; }
-.v2-instructions li { counter-increment: step; display: grid; grid-template-columns: 30px 1fr; align-items: center; color: #d5dfeb; font-size: 16px; line-height: 1.4; }
-.v2-instructions li::before { content: counter(step); width: 27px; height: 27px; display: grid; place-items: center; border-radius: 50%; background: var(--v2-accent); color: #142000; font-weight: 900; }
+.v2-instructions li { counter-increment: step; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px; align-items: start; color: var(--v2-text); font-size: 16px; line-height: 1.4; }
+.v2-instructions li::before { content: counter(step); width: 27px; height: 27px; margin-top: 1px; display: grid; place-items: center; border-radius: 50%; background: var(--v2-accent); color: #142000; font-weight: 900; }
+.v2-instructions strong, .v2-instructions small { display: block; }
+.v2-instructions strong { color: var(--v2-text); font-size: 16px; font-weight: 800; line-height: 1.35; }
+.v2-instructions small { margin-top: 2px; color: var(--v2-muted); font-size: 16px; font-weight: 500; line-height: 1.35; }
 .v2-card > .v2-button { margin-top: 14px; }
 .v2-card > .v2-text-button { display: block; margin-top: 12px; }
 .v2-field { display: flex; flex-direction: column; gap: 6px; font-size: 16px; min-width: 0; }

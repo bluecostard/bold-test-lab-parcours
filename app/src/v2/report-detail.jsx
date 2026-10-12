@@ -24,7 +24,15 @@ function liveReport(review, campaign) {
     title: review.title || text.slice(0, 80) || "Avis de testeur",
     screen: "Parcours",
     testers: 1,
-    steps: campaign.instructions?.length ? campaign.instructions : ["Ouvrez le produit.", "Suivez les consignes.", "Notez ce qui bloque."],
+    steps: campaign.instructions?.length
+      ? campaign.instructions.map((item) => {
+          if (typeof item === "string") return item;
+          const title = String(item?.title || "").trim();
+          const detail = String(item?.detail || item?.text || "").trim();
+          if (title && detail && detail !== title) return `${title} — ${detail}`;
+          return title || detail;
+        }).filter(Boolean)
+      : ["Ouvrez le produit.", "Suivez les consignes.", "Notez ce qui bloque."],
     expected: "Le parcours se comprend et les consignes suffisent.",
     observed: text || "Le testeur a signalé un point à améliorer.",
     photo: review.screenshot || review.photos?.[0]?.url || campaign.screenshots?.[0] || campaign.cover || campaign.logo,

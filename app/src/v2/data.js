@@ -33,9 +33,9 @@ export const campaigns = [
       duration: "0:12",
     },
     instructions: [
-      "Ouvrez Bed Hop.",
-      "Cherchez une chambre entre 11 h et 17 h.",
-      "Dites si la réservation est claire.",
+      { title: "Ouvrez Bed Hop", detail: "Installez l’app et créez un compte pour commencer." },
+      { title: "Cherchez une chambre", detail: "Entre 11 h et 17 h autour de vous." },
+      { title: "Évaluez la réservation", detail: "Dites si le parcours est clair et ce qui bloque." },
     ],
     appScreens: ["Accueil", "Autour de toi", "Comment ça marche"],
     kind: "app",

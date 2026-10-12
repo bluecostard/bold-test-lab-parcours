@@ -160,12 +160,35 @@ export function Tags({ items }) {
   return <ul className="v2-tags" aria-label="Catégories">{items.map((item) => <li key={item}>{item}</li>)}</ul>;
 }
 
+function normalizeInstruction(item) {
+  if (typeof item === "string") {
+    const title = item.trim();
+    return title ? { title, detail: "" } : null;
+  }
+  if (!item || typeof item !== "object") return null;
+  const title = String(item.title || "").trim();
+  const detail = String(item.detail || item.text || "").trim();
+  if (!title && !detail) return null;
+  if (!title) return { title: detail, detail: "" };
+  return { title, detail: detail === title ? "" : detail };
+}
+
 export function CampaignInstructions({ campaign }) {
-  if (!campaign.instructions?.length) return null;
+  const steps = (campaign.instructions || []).map(normalizeInstruction).filter(Boolean);
+  if (!steps.length) return null;
   return (
     <Card>
       <SectionTitle icon="▤" title="Consignes de l’entrepreneur" description={`Suivez ces étapes pour tester ${campaign.name}.`} />
-      <ol className="v2-instructions">{campaign.instructions.map((item) => <li key={item}>{item}</li>)}</ol>
+      <ol className="v2-instructions">
+        {steps.map((item, index) => (
+          <li key={`${item.title}-${index}`}>
+            <span>
+              <strong>{item.title}</strong>
+              {item.detail ? <small>{item.detail}</small> : null}
+            </span>
+          </li>
+        ))}
+      </ol>
     </Card>
   );
 }

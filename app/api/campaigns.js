@@ -1,6 +1,6 @@
 import { readClerkUser } from "../lib/clerkAuth.js";
 import { listCampaigns, readCampaign, saveCampaign } from "../lib/campaignStore.js";
-import { draftCampaign, mapSocials } from "../lib/campaignDraft.js";
+import { draftCampaign, mapInstruction, mapSocials } from "../lib/campaignDraft.js";
 import { readBooking } from "../lib/bookingStore.js";
 import { runMailJobs } from "../lib/mailJobs.js";
 
@@ -21,7 +21,9 @@ function publicCampaign(campaign) {
     website: campaign.website || "",
     productLinks: Array.isArray(campaign.productLinks) ? campaign.productLinks.slice(0, 6) : [],
     socials: mapSocials(campaign.socials),
-    instructions: Array.isArray(campaign.instructions) ? campaign.instructions.slice(0, 8) : [],
+    instructions: Array.isArray(campaign.instructions)
+      ? campaign.instructions.map(mapInstruction).filter(Boolean).slice(0, 8)
+      : [],
     appScreens: Array.isArray(campaign.appScreens) ? campaign.appScreens.slice(0, 8) : ["Accueil", "Parcours", "Confirmation"],
     kind: campaign.kind || "app",
     live: campaign.live !== false,
