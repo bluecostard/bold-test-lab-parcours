@@ -22,11 +22,12 @@
     </header>
     <main>
       <h1>Informations de publication</h1>
-      <p>Textes et adresses à coller dans App Store Connect et Google Play Console. L’application n’est pas encore un binaire store.</p>
+      <p>Textes et adresses à coller dans App Store Connect et Google Play Console. Dernière mise à jour : 13 octobre 2026.</p>
 
       <h2>Fiche</h2>
       <p>Nom. Gemelo</p>
       <p>Éditeur. Blue Costard Compagnie — SIRET 109 416 958 00014</p>
+      <p>Bundle iOS. online.gemelo.app</p>
       <p>Sous-titre. Votre projet. Leur regard.</p>
       <p>Description courte. Faites tester votre application ou votre site, et gagnez en visibilité en partageant des avis utiles.</p>
       <p>Description. Gemelo relie les personnes qui créent des produits numériques à celles qui aiment les découvrir. Un entrepreneur choisit un créneau de mise en avant. Les testeurs essaient le projet, publient un avis, des captures ou une vidéo. Les likes font progresser le classement des 30 derniers jours. Les projets des testeurs du top 10 restent visibles tant qu’ils y figurent. Aucune offre ne garantit un nombre de tests.</p>
@@ -43,17 +44,23 @@
       <h2>Âge et classification</h2>
       <p>Âge dans Gemelo. 16 ans et plus. Une confirmation est demandée à la première ouverture.</p>
       <p>Contenus. Avis, photos et vidéos publiés par les membres. Un avis peut être signalé. Un auteur peut être bloqué. Pas de violence, de nudité ni de jeux d’argent dans le service.</p>
-      <p>Achats. Créneaux payants via Stripe sur le web. Pas d’achat intégré App Store ou Play pour le moment.</p>
+      <p>Achats. Sur iOS (app native / TestFlight), les créneaux se paient uniquement via les achats intégrés Apple (StoreKit). Sur le web (gemelo.online), le paiement passe par Stripe. Pas d’achat intégré Google Play pour le moment.</p>
       <p>Accès web. Un logo ou un lien de campagne peut ouvrir le site du projet. Apple peut classer l’app 17+ pour cet accès web. Play : contenus générés par les utilisateurs, interactions sociales, achats numériques.</p>
 
+      <h2>Achats intégrés Apple (IAP)</h2>
+      <p>Type. Consommables — un créneau de campagne par achat.</p>
+      <p>Identifiants produit (à avoir Approuvés dans App Store Connect) :</p>
+      <p>online.gemelo.slot.19 · online.gemelo.slot.39 · online.gemelo.slot.55 · online.gemelo.slot.65 · online.gemelo.slot.49 · online.gemelo.slot.109 · online.gemelo.slot.149</p>
+      <p>Montants affichés côté Apple (TTC catalogue). 19,99 € · 39,99 € · 59,99 € · 69,99 € · 49,99 € · 109,99 € · 149,99 €</p>
+
       <h2>Données — réponses à coller (Apple et Play)</h2>
-      <p>Collecté, lié au compte. Nom, e-mail, identifiant Clerk, pseudo, projet, texte d’avis, photos, vidéos, likes, questions à un testeur, messages de contact, historique d’un créneau payé.</p>
+      <p>Collecté, lié au compte. Nom, e-mail, identifiant Clerk, pseudo, projet, texte d’avis, photos, vidéos, likes, questions à un testeur, messages, historique d’un créneau payé, jeton de notification push (iOS, si autorisé).</p>
       <p>Non collecté. Localisation, contacts, calendrier, identifiant publicitaire, numéro de carte, CVC, données bancaires.</p>
-      <p>Partagé pour faire fonctionner le service. Clerk (connexion : nom, e-mail, identifiant). Stripe (paiement du créneau). Vercel / stockage des fichiers (avis et médias publiés).</p>
+      <p>Partagé pour faire fonctionner le service. Clerk (connexion). Apple (paiement IAP dans l’app iOS ; envoi des notifications push). Stripe (paiement du créneau sur le web uniquement). Vercel / stockage des fichiers (avis et médias publiés).</p>
       <p>Pas de vente de données. Pas de publicité tierce. Pas de suivi publicitaire.</p>
-      <p>Chiffrement en transit. Oui (HTTPS). Suppression : Réglages dans l’app, ou https://gemelo.online/supprimer/.</p>
-      <p>Apple Privacy Nutrition. Contact Info (Name, Email) — linked. Identifiers (User ID) — linked. User Content (Photos, Videos, Other) — linked. Purchases (Purchase History) — linked. Tracking : No.</p>
-      <p>Play Data safety. Collected : Name, Email, User IDs, Photos and videos, Other user-generated content, Purchase history. Shared : with Clerk, Stripe, hosting. Encrypted in transit : yes. Users can request deletion : yes. Data is not sold.</p>
+      <p>Chiffrement en transit. Oui (HTTPS). Suppression : Réglages dans l’app, ou https://gemelo.online/supprimer/ (purge serveur + compte Clerk).</p>
+      <p>Apple Privacy Nutrition. Contact Info (Name, Email) — linked. Identifiers (User ID) — linked. User Content (Photos, Videos, Other) — linked. Purchases (Purchase History) — linked. Other Data (device push token) — linked, used for app functionality. Tracking : No.</p>
+      <p>Play Data safety. Collected : Name, Email, User IDs, Photos and videos, Other user-generated content, Purchase history. Shared : with Clerk, Stripe (web), hosting. Encrypted in transit : yes. Users can request deletion : yes. Data is not sold.</p>
 
       <h2>Icône et captures</h2>
       <p>Icône 1024 × 1024. <a href="/stores/icon-1024.png">/stores/icon-1024.png</a></p>
@@ -61,24 +68,24 @@
       <p>Captures iPhone 6,7" (1290 × 2796), à coller dans App Store Connect et Play :</p>
       <p><a href="/stores/captures/01-accueil.jpg">Accueil</a> · <a href="/stores/captures/02-campagne.jpg">Campagne</a> · <a href="/stores/captures/03-avis.jpg">Avis</a> · <a href="/stores/captures/10-classement.jpg">Classement</a> · <a href="/stores/captures/12-offre.jpg">Offre</a> · <a href="/stores/captures/16-rapport.jpg">Rapport</a></p>
 
-      <h2>Notes pour l’équipe Store</h2>
-      <p>Ouvrir l’application. https://gemelo.online/?app=1 — confirmer 16 ans, puis créer un compte Clerk (mode test).</p>
-      <p>Parcours à vérifier. Accueil Bed Hop, publier un avis, signaler, bloquer, Réglages (données, suppression), Contact.</p>
-      <p>Paiement. Stripe est en mode test. Aucune carte réelle n’est débitée. Pas de compte démo inventé : l’inscription est ouverte.</p>
+      <h2>Notes pour le reviewer App Store</h2>
+      <p>Compte. Inscription ouverte via Clerk — pas de compte démo inventé. Confirmer 16 ans à l’ouverture.</p>
+      <p>Parcours à vérifier. Accueil, page campagne, publier un avis (photo / vidéo), signaler, bloquer, messagerie (après paiement), Réglages (notifications, données, suppression de compte), Contact.</p>
+      <p>Paiement iOS. Utiliser un compte Sandbox App Store (Réglages iOS → App Store → Compte Sandbox). Dans Gemelo : profil → Faire tester mon service → choisir une offre → payer avec la feuille Apple (StoreKit). Stripe n’est pas utilisé dans l’app iOS. Après achat, la campagne doit apparaître et le créneau être confirmé.</p>
+      <p>Produits Sandbox. Les IDs listés ci-dessus (online.gemelo.slot.*). Consommables.</p>
+      <p>Notifications. L’app peut demander l’autorisation push pour « Nouvelle campagne » et « Classement » (facultatif, réglages).</p>
+      <p>Suppression. Réglages → Supprimer mon compte : purge les données serveur Gemelo puis ferme Clerk.</p>
       <p>Page introuvable. https://gemelo.online/introuvable/ ou https://gemelo.online/?app=1&amp;ecran=inconnu</p>
 
-      <h2>Encore nécessaire pour les stores</h2>
-      <p>Binaire iOS. Le projet Capacitor et le fichier Codemagic sont en place (bundle online.gemelo.app). L’IPA s’ouvre sur gemelo.online/?app=1. Pas encore envoyé à l’App Store.</p>
-      <p>Achats intégrés. Dans TestFlight interne, le paiement reste Stripe web. Avant une revue App Store, il faudra les achats Apple (IAP) à la place de Stripe dans l’app.</p>
-      <p>Comptes. Apple Developer et Google Play Console au nom de Blue Costard Compagnie.</p>
-      <p>Clés live. Clerk et Stripe sont encore en mode test. Les clés live ne s’activent que lorsque vous décidez d’encaisser pour de vrai.</p>
+      <h2>Build et pipeline</h2>
+      <p>Binaire iOS. Capacitor, bundle online.gemelo.app. L’IPA charge https://gemelo.online/?app=1. Builds TestFlight via GitHub Actions + Fastlane (workflow « iOS TestFlight »).</p>
+      <p>Web. Stripe reste le paiement sur gemelo.online hors app native.</p>
 
-      <h2>Codemagic — TestFlight</h2>
-      <p>1. Créer l’app dans App Store Connect : nom Gemelo, bundle online.gemelo.app, société Blue Costard Compagnie.</p>
-      <p>2. Dans Apple, créer une clé API App Store Connect (accès Admin ou App Manager). Noter l’Issuer ID et le Key ID. Ne pas coller le fichier .p8 dans le chat.</p>
-      <p>3. Dans Codemagic : connecter ce dépôt, créer une intégration App Store Connect nommée exactement Gemelo, coller la clé là.</p>
-      <p>4. Variable d’environnement APP_STORE_APPLE_ID = le numéro numérique de l’app (App Store Connect → App Information).</p>
-      <p>5. Commit et push du dépôt, puis lancer le workflow « Gemelo iOS TestFlight ». Il publie sur TestFlight, pas sur l’App Store.</p>
+      <h2>Encore nécessaire avant Submit</h2>
+      <p>Produits IAP Approuvés dans App Store Connect + test Sandbox réussi bout-en-bout.</p>
+      <p>Privacy Nutrition Labels alignés sur cette page (Apple + push + Purchase History).</p>
+      <p>Captures iPad si l’app reste universelle, ou cible iPhone seule.</p>
+      <p>Accords Paid Applications / fiscalité / banque à jour dans App Store Connect.</p>
     </main>
     <footer>Gemelo · gemelo.online</footer>
   </div>
