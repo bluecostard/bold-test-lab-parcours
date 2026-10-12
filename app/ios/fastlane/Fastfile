@@ -59,10 +59,8 @@ platform :ios do
       UI.important("Activation Push Notifications sur online.gemelo.app")
       Spaceship::ConnectAPI.post_bundle_id_capability(
         bundle_id_id: bundle.id,
-        attributes: {
-          capabilityType: "PUSH_NOTIFICATIONS",
-          settings: []
-        }
+        capability_type: Spaceship::ConnectAPI::BundleIdCapability::Type::PUSH_NOTIFICATIONS,
+        settings: []
       )
     end
 
