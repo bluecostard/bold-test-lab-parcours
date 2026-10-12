@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useUser } from "@clerk/react";
+import { useAuth, useUser } from "@clerk/react";
 import { browseProjects } from "./data.js";
 import { useCampaignCatalog } from "./catalog.js";
+import { syncAccountFromServer } from "./accountSync.js";
 import { setStorageScope } from "./state.js";
 import { SideDrawer } from "./chrome.jsx";
 import { Button, PageShell } from "./primitives.jsx";
@@ -81,9 +82,31 @@ const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 function ClerkStorageScope({ children }) {
   const { isLoaded, user } = useUser();
+  const { getToken } = useAuth();
+  const [ready, setReady] = useState(false);
   const scope = isLoaded ? (user?.id || "guest") : "pending";
-  if (scope !== "pending") setStorageScope(scope);
-  if (scope === "pending") {
+
+  useEffect(() => {
+    if (!isLoaded) return undefined;
+    setStorageScope(scope);
+    let cancelled = false;
+    setReady(false);
+    (async () => {
+      if (user?.id && getToken) {
+        try {
+          await syncAccountFromServer(getToken);
+        } catch {
+          /* local vide si serveur indisponible — l’UI reste utilisable */
+        }
+      }
+      if (!cancelled) setReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [getToken, isLoaded, scope, user?.id]);
+
+  if (scope === "pending" || !ready) {
     return (
       <PageShell>
         <main className="v2-stack">
