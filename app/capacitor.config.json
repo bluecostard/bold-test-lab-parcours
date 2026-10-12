@@ -11,7 +11,9 @@
       "*.clerk.com",
       "*.clerk.accounts.dev",
       "checkout.stripe.com",
-      "*.stripe.com"
+      "*.stripe.com",
+      "*.blob.vercel-storage.com",
+      "*.public.blob.vercel-storage.com"
     ]
   },
   "ios": {

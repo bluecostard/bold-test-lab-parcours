@@ -9,8 +9,9 @@ import { finishAppleProduct, isNativeIos, purchaseAppleProduct } from "./nativeP
 import { formatOfferPrice, formatStoredOfferPrice, offers } from "./data.js";
 import {
   forgetBlobFile,
-  hostMediaValue,
+  hostMediaValueSoft,
   imageFileToJpeg,
+  isHostedMedia,
   previewUrl,
   rememberBlobFile,
   snapshotFiles,
@@ -459,12 +460,22 @@ function PaymentBody({ navigate, back, pageRef, getToken, user }) {
       const next = readAccount();
       const payload = campaignPayload(next);
       const shots = payload.screenshots || [];
-      setStatus(shots.length ? `Envoi des visuels (0/${shots.length + 1})…` : "Envoi du logo…");
-      payload.logo = await hostMediaValue(getToken, payload.logo, "logo.jpg");
+      const total = (payload.logo ? 1 : 0) + shots.length;
+      let done = 0;
+      if (payload.logo && !isHostedMedia(payload.logo)) {
+        setStatus(`Envoi des visuels (${done}/${total})…`);
+        payload.logo = await hostMediaValueSoft(getToken, payload.logo, "logo.jpg");
+      }
+      done += 1;
       const hostedShots = [];
       for (let index = 0; index < shots.length; index += 1) {
-        setStatus(`Envoi des visuels (${index + 1}/${shots.length})…`);
-        hostedShots.push(await hostMediaValue(getToken, shots[index], `capture-${index + 1}.jpg`));
+        setStatus(`Envoi des visuels (${done}/${total})…`);
+        if (isHostedMedia(shots[index])) {
+          hostedShots.push(shots[index]);
+        } else {
+          hostedShots.push(await hostMediaValueSoft(getToken, shots[index], `capture-${index + 1}.jpg`));
+        }
+        done += 1;
       }
       payload.screenshots = hostedShots.filter(Boolean);
       payload.cover = payload.screenshots[0] || payload.logo || "";
