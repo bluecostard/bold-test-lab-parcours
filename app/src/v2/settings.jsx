@@ -123,19 +123,19 @@ function NotificationsCard({ navigate }) {
   return (
     <form className="v2-stack" onSubmit={save}>
       <p className="v2-muted">
-        Ces alertes partent par e-mail (bonjour@gemelo.online), pas en notification système du téléphone. Facultatifs — vous pouvez les couper. Les e-mails obligatoires (bienvenue, confirmation de campagne, question sur un avis, nouveau message, modification ou annulation de créneau) partent toujours.
+        Facultatifs — vous pouvez les couper. « Nouvelle campagne » et « Classement » partent aussi en push iPhone (si autorisé). Les e-mails obligatoires (bienvenue, confirmation de campagne, question sur un avis, nouveau message, modification ou annulation de créneau) partent toujours par mail.
       </p>
       <label className="v2-consent">
         <input type="checkbox" checked={prefs.campaigns} disabled={!ready} onChange={(event) => setPrefs((current) => ({ ...current, campaigns: event.target.checked }))} />
-        Nouvelle campagne de test
+        Nouvelle campagne — e-mail + push téléphone
       </label>
       <label className="v2-consent">
         <input type="checkbox" checked={prefs.ranking} disabled={!ready} onChange={(event) => setPrefs((current) => ({ ...current, ranking: event.target.checked }))} />
-        Classement de la semaine
+        Classement de la semaine — e-mail + push téléphone
       </label>
       <label className="v2-consent">
         <input type="checkbox" checked={prefs.closing} disabled={!ready} onChange={(event) => setPrefs((current) => ({ ...current, closing: event.target.checked }))} />
-        Dernière ligne droite (4 h)
+        Dernière ligne droite (4 h) — e-mail seulement
       </label>
       <Button type="submit" disabled={!ready || saving}>{saving ? "Enregistrement…" : "Enregistrer"}</Button>
       {error ? <p className="v2-helper" role="alert">{error}</p> : null}

@@ -31,10 +31,14 @@
     "StatusBar": {
       "style": "DARK",
       "backgroundColor": "#071426"
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
     }
   },
   "packageClassList": [
     "AppPlugin",
+    "PushNotificationsPlugin",
     "SplashScreenPlugin",
     "StatusBarPlugin",
     "GemeloIapPlugin"

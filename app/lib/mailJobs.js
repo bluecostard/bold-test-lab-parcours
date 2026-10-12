@@ -3,6 +3,7 @@ import { campaignEndMs, campaignRemainingMs, endsLabel, isParisMonday, parisWeek
 import { campaignEmail, closingEmail, rankingEmail } from "./emails.js";
 import { sendMail } from "./mail.js";
 import { listRecipients, readMailPrefs, writeMailState, writePendingCampaign } from "./mailPrefs.js";
+import { pushToRecipients } from "./pushNotify.js";
 import { buildRanking } from "./ranking.js";
 
 const HOUR = 60 * 60 * 1000;
@@ -49,6 +50,15 @@ async function sendCampaignNotices(prefs, budget) {
     const already = recipientsSent[id] || {};
     const recipients = listRecipients(prefs, "campaigns").filter((entry) => entry.userId !== campaign.ownerId && !already[entry.userId]);
     let incomplete = false;
+    try {
+      await pushToRecipients(recipients, {
+        title: "Nouvelle campagne",
+        body: `${campaign.name} vous attend sur Gemelo.`,
+        ecran: "campaign",
+      });
+    } catch (error) {
+      console.log("push-campaign", String(error?.message || error).slice(0, 120));
+    }
     for (const entry of recipients) {
       if (sent >= budget) {
         incomplete = true;
@@ -87,6 +97,15 @@ async function sendRanking(prefs, budget) {
   const recipients = listRecipients(prefs, "ranking").filter((entry) => !already[entry.userId]);
   let sent = 0;
   let failed = false;
+  try {
+    await pushToRecipients(recipients, {
+      title: "Classement Gemelo",
+      body: "Le Top 10 de la semaine est disponible.",
+      ecran: "ranking",
+    });
+  } catch (error) {
+    console.log("push-ranking", String(error?.message || error).slice(0, 120));
+  }
   for (const entry of recipients) {
     if (sent >= budget) {
       failed = true;

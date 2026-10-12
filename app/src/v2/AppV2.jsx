@@ -3,6 +3,7 @@ import { useAuth, useUser } from "@clerk/react";
 import { browseProjects } from "./data.js";
 import { useCampaignCatalog } from "./catalog.js";
 import { syncAccountFromServer } from "./accountSync.js";
+import { startNativePush } from "./pushNative.js";
 import { setStorageScope } from "./state.js";
 import { SideDrawer } from "./chrome.jsx";
 import { Button, PageShell } from "./primitives.jsx";
@@ -98,6 +99,7 @@ function ClerkStorageScope({ children }) {
         } catch {
           /* local vide si serveur indisponible — l’UI reste utilisable */
         }
+        startNativePush(getToken).catch(() => {});
       }
       if (!cancelled) setReady(true);
     })();
