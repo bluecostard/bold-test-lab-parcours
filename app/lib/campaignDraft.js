@@ -1,11 +1,11 @@
-import { hostedMediaUrl } from "./mediaUrl.js";
+import { hostedMediaUrl, publicMediaUrl } from "./mediaUrl.js";
 
 function clean(value, limit = 240) {
   return typeof value === "string" ? value.trim().slice(0, limit) : "";
 }
 
 function shortMedia(value) {
-  return hostedMediaUrl(value, 500);
+  return publicMediaUrl(value) || hostedMediaUrl(value, 500);
 }
 
 const socialIcons = { Instagram: "◎", TikTok: "♪", Facebook: "f", LinkedIn: "in", YouTube: "▶", X: "X" };

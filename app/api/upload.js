@@ -59,8 +59,9 @@ export default async function handler(req, res) {
           allowedContentTypes: kind === "video" ? videoTypes : imageTypes,
           maximumSizeInBytes: kind === "video" ? 100 * 1024 * 1024 : 10 * 1024 * 1024,
           addRandomSuffix: true,
+          // Store Gemelo = privé.
+          access: "private",
           tokenPayload: JSON.stringify({ userId: user.id, kind }),
-          // Forcé pour les callbacks hors détection auto (Vite + Capacitor).
           callbackUrl: "https://gemelo.online/api/upload",
         };
       },

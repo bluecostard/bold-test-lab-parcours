@@ -1,5 +1,5 @@
 import { upload } from "@vercel/blob/client";
-import { hostedMediaUrl } from "../../lib/mediaUrl.js";
+import { hostedMediaUrl, publicMediaUrl } from "../../lib/mediaUrl.js";
 
 const imageMax = 10 * 1024 * 1024;
 const videoMax = 100 * 1024 * 1024;
@@ -162,13 +162,13 @@ async function uploadMediaViaBlobClient(getToken, file, type) {
   if (!token) throw new Error("Connectez-vous pour envoyer un fichier.");
   const safe = String(file.name || type).replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 80) || type;
   const blob = await upload(`media/${type}/${safe}`, file, {
-    access: "public",
+    access: "private",
     handleUploadUrl: `${originUrl()}/api/upload`,
     multipart: false,
     headers: { Authorization: `Bearer ${token}` },
     clientPayload: JSON.stringify({ kind: type }),
   });
-  return { name: file.name, url: blob.url };
+  return { name: file.name, url: publicMediaUrl(blob.url) };
 }
 
 export async function uploadMedia(getToken, file, kind = "image") {

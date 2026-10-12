@@ -1,5 +1,6 @@
 import { list, put } from "@vercel/blob";
 import { readClerkUser } from "../lib/clerkAuth.js";
+import { publicMediaUrl } from "../lib/mediaUrl.js";
 
 const imageTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const maxBytes = 4 * 1024 * 1024;
@@ -59,12 +60,16 @@ export default async function handler(req, res) {
 
   try {
     const blob = await put(`media/image/${user.id.slice(0, 12)}-${cleanName(body.name)}`, buffer, {
-      access: "public",
+      access: "private",
       contentType,
       addRandomSuffix: true,
       token: process.env.BLOB_READ_WRITE_TOKEN,
     });
-    return res.status(200).json({ url: blob.url, name: cleanName(body.name) });
+    return res.status(200).json({
+      url: publicMediaUrl(blob.url),
+      blobUrl: blob.url,
+      name: cleanName(body.name),
+    });
   } catch (error) {
     const message = blobError(error);
     console.log("media-put", message);
