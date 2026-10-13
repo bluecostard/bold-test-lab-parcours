@@ -142,6 +142,22 @@ export function isCampaignSlotActive(campaign, now = Date.now()) {
   return campaignRemainingMsFor(campaign, now) > 0;
 }
 
+/** Statut affichable : scheduled | live | done. */
+export function campaignResultStatus(campaign, now = Date.now()) {
+  if (!campaign?.offerDate) return "done";
+  const start = slotStart(campaign.offerDate, campaign.offerRange, campaign.offerLabel);
+  if (!start) return "done";
+  if (now < start.getTime()) return "scheduled";
+  if (campaignRemainingMsFor(campaign, now) > 0) return "live";
+  return "done";
+}
+
+export function campaignResultStatusLabel(status) {
+  if (status === "scheduled") return "Programmée";
+  if (status === "live") return "En cours";
+  return "✓ Terminée";
+}
+
 export function canManageBooking(account, now = new Date()) {
   const start = slotStart(account?.offerDate, account?.offerRange, account?.offerLabel);
   if (!start) return false;

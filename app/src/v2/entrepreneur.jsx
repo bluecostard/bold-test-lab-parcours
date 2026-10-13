@@ -2,7 +2,7 @@ import { useAuth, useUser } from "@clerk/react";
 import { useEffect, useRef, useState } from "react";
 import { readAccount, writeAccount } from "../screens/account.js";
 import { slotAvailable } from "../../lib/availability.js";
-import { apply, addDays, demoOfferDays, formattedDate, isIsoDate, localToday, slotEnded } from "./booking.js";
+import { apply, addDays, campaignResultStatus, campaignResultStatusLabel, demoOfferDays, formattedDate, isIsoDate, localToday, slotEnded } from "./booking.js";
 import { useCampaignCatalog } from "./catalog.js";
 import { confirmAppleCheckout, confirmCheckout, paymentMode, requestCampaignConfirmMail, startAppleCheckout, startCheckout } from "./checkoutApi.js";
 import { finishAppleProduct, isNativeIos, purchaseAppleProduct } from "./nativePay.js";
@@ -19,6 +19,7 @@ import {
   uploadMedia,
 } from "./mediaApi.js";
 import { mapSocials, SOCIAL_NETWORKS } from "../../lib/campaignDraft.js";
+import { syncAccountFromServer } from "./accountSync.js";
 import { publishCampaign } from "./campaignsApi.js";
 import { listReviews } from "./reviewsApi.js";
 import { hasPaidCampaign } from "./state.js";
@@ -1081,27 +1082,70 @@ function ConfirmationBody({ navigate, pageRef, getToken, email = "" }) {
   );
 }
 
-export function ResultsScreen({ navigate, pageRef }) {
-  const paid = hasPaidCampaign();
-  const account = readAccount();
-  const real = paid;
-  const ended = paid ? slotEnded(account) : true;
-  const campaignId = paid ? (account.campaignId || "") : "";
+export function ResultsScreen(props) {
+  return clerkKey ? <ResultsAuthed {...props} /> : <ResultsBody {...props} getToken={null} />;
+}
+
+function ResultsAuthed(props) {
+  const { getToken } = useAuth();
+  return <ResultsBody {...props} getToken={getToken} />;
+}
+
+function ResultsBody({ navigate, pageRef, getToken }) {
+  const [account, setAccount] = useState(readAccount);
+  const [ready, setReady] = useState(!getToken);
   const [tab, setTab] = useState("campaigns");
   const [filter, setFilter] = useState("all");
   const [reviewsOpen, setReviewsOpen] = useState(false);
   const [reviews, setReviews] = useState([]);
+
   useEffect(() => {
-    if (!campaignId) return;
-    listReviews(campaignId).then(setReviews).catch(() => setReviews([]));
+    let cancelled = false;
+    (async () => {
+      if (getToken) {
+        try {
+          await syncAccountFromServer(getToken);
+        } catch {
+          /* local inchangé */
+        }
+      }
+      if (!cancelled) {
+        setAccount(readAccount());
+        setReady(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [getToken]);
+
+  const paid = Boolean(account.campaignPaid && account.offerDate && account.offerLabel);
+  const status = paid ? campaignResultStatus(account) : "done";
+  const statusLabel = campaignResultStatusLabel(status);
+  const campaignId = paid ? (account.campaignId || "") : "";
+
+  useEffect(() => {
+    if (!campaignId) {
+      setReviews([]);
+      return undefined;
+    }
+    let cancelled = false;
+    listReviews(campaignId)
+      .then((items) => { if (!cancelled) setReviews(items); })
+      .catch(() => { if (!cancelled) setReviews([]); });
+    return () => { cancelled = true; };
   }, [campaignId]);
+
   const stats = reviewStats(reviews);
-  const visible = paid && (filter === "all" || (filter === "done" && ended) || (filter === "live" && !ended));
+  const matchesFilter = paid && (
+    filter === "all"
+    || (filter === "live" && (status === "live" || status === "scheduled"))
+    || (filter === "done" && status === "done")
+  );
   const logo = account.projectLogo;
   const site = account.projectLink;
-  const name = account.projectName;
+  const name = account.projectName?.trim() || "Votre campagne";
   const pitch = account.projectPitch;
   const tags = account.tags?.length ? account.tags : account.category ? [account.category] : [];
+
   return (
     <PageShell withNav pageRef={pageRef}>
       <main className="v2-stack">
@@ -1115,6 +1159,8 @@ export function ResultsScreen({ navigate, pageRef }) {
         </div>
         {tab === "favorites" ? (
           <Card><p className="v2-description">Aucun projet favori enregistré.</p></Card>
+        ) : !ready ? (
+          <Card><p className="v2-description">Chargement de vos campagnes…</p></Card>
         ) : (
           <>
             <div className="v2-pills" role="group" aria-label="Filtrer les campagnes">
@@ -1122,22 +1168,21 @@ export function ResultsScreen({ navigate, pageRef }) {
                 <button key={id} type="button" className={filter === id ? "is-on" : ""} onClick={() => setFilter(id)}>{label}</button>
               ))}
             </div>
-            {visible ? (
+            {matchesFilter ? (
               <Card className="v2-result-card">
                 <div className="v2-result-head">
                   <div className="v2-identity">
-                    <a className="v2-project-logo" href={site || undefined} target="_blank" rel="noreferrer" aria-label={`Ouvrir le site de ${name}`}>
+                    <a className="v2-project-logo" href={site || undefined} target="_blank" rel="noreferrer" aria-label={site ? `Ouvrir le site de ${name}` : undefined}>
                       {logo ? <img src={logo} alt={`Logo ${name}`} /> : <span aria-hidden="true">Logo</span>}
                     </a>
                     <div>
                       <h2>{name}</h2>
-                      <p>{pitch}</p>
-                      {real ? null : <p className="v2-result-fictif">Exemple fictif</p>}
+                      {pitch ? <p>{pitch}</p> : null}
                       <Tags items={tags} />
                     </div>
                   </div>
                   <div className="v2-result-meta">
-                    <span className="v2-status-ok">{ended ? "✓ Terminée" : "En cours"}</span>
+                    <span className={status === "done" ? "v2-status-ok" : "v2-status-live"}>{statusLabel}</span>
                     <p>{account.offerLabel || "Campagne"} · {formattedDate(account.offerDate)}</p>
                   </div>
                 </div>
@@ -1161,7 +1206,20 @@ export function ResultsScreen({ navigate, pageRef }) {
                 ) : null}
               </Card>
             ) : (
-              <Card><p className="v2-description">{paid ? "Aucune campagne ne correspond à ce filtre." : "Aucune campagne enregistrée sur cet appareil."}</p></Card>
+              <Card>
+                <p className="v2-description">
+                  {!paid
+                    ? "Aucune campagne enregistrée sur cet appareil. Si vous avez déjà payé, reconnectez-vous pour la retrouver."
+                    : filter === "live"
+                      ? "Aucune campagne en cours. Votre dernière campagne est terminée — ouvrez « Terminées » ou « Tous »."
+                      : filter === "done"
+                        ? "Aucune campagne terminée pour le moment."
+                        : "Aucune campagne ne correspond à ce filtre."}
+                </p>
+                {paid && filter === "live" && status === "done" ? (
+                  <Button type="button" variant="outline" onClick={() => setFilter("done")}>Voir les campagnes terminées</Button>
+                ) : null}
+              </Card>
             )}
           </>
         )}
