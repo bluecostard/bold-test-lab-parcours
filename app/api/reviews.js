@@ -1,5 +1,6 @@
 import { readClerkUser } from "../lib/clerkAuth.js";
 import { readCampaign } from "../lib/campaignStore.js";
+import { findDemoReview } from "../lib/demoTesterReviews.js";
 import { hostedMediaUrl, publicPhotos } from "../lib/mediaUrl.js";
 import { listReviews, readReview, saveReview } from "../lib/reviewStore.js";
 
@@ -40,6 +41,7 @@ function publicReview(review) {
     journeyScore: Number.isFinite(review.journeyScore) ? review.journeyScore : null,
     screen: review.screen || "",
     bugText: review.bugText || "",
+    demo: Boolean(review.demo),
   };
 }
 
@@ -53,8 +55,13 @@ export default async function handler(req, res) {
       // Lecture autorisée même si la campagne n’est plus live : les avis restent disponibles.
       if (reviewId) {
         const review = await readReview(campaignId, reviewId);
-        if (!review || review.hidden) return res.status(404).json({ error: "Avis introuvable." });
-        return res.status(200).json({ review: publicReview(review) });
+        if (review && !review.hidden) {
+          return res.status(200).json({ review: publicReview(review) });
+        }
+        // Historique classement / seeds : toujours ouvrable hors blob.
+        const demo = findDemoReview(campaignId, reviewId);
+        if (demo) return res.status(200).json({ review: publicReview(demo) });
+        return res.status(404).json({ error: "Avis introuvable." });
       }
       const reviews = await listReviews(campaignId);
       return res.status(200).json({ reviews: reviews.map(publicReview) });

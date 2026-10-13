@@ -62,7 +62,9 @@ export default async function handler(req, res) {
     if (!person) return res.status(404).json({ error: "Testeur introuvable." });
 
     let reviews = await liveReviewsForAuthor(person.authorId || authorId, person.name || name);
-    if (!reviews.length) reviews = demoReviewsForAuthor(person.name).map((item) => publicReviewCard(item, item.campaignName));
+    if (!reviews.length) {
+      reviews = demoReviewsForAuthor(person.name).map((item) => publicReviewCard(item, item.campaignName));
+    }
 
     return res.status(200).json({
       tester: {

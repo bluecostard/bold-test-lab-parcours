@@ -601,15 +601,25 @@ export function AppV2() {
     if (place.screen === "report-check") return campaign ? <ReportCheckScreen {...props} campaign={campaign} /> : <DiscoverScreen {...props} />;
     if (place.screen === "login") return <LoginScreen {...props} from={place.from} campaignId={place.campaignId} />;
     if (place.screen === "review-published") {
-      const reviewCampaign = campaign || {
-        id: place.campaignId,
-        name: "Campagne",
-        tags: [],
-        logo: "",
-        cover: "",
-        screenshots: [],
-        archived: true,
-      };
+      const reviewCampaign = campaign || (testerProject
+        ? {
+            id: testerProject.id,
+            name: testerProject.name,
+            tags: testerProject.tags || [],
+            logo: testerProject.logo || "",
+            cover: testerProject.cover || "",
+            screenshots: testerProject.screenshots || [],
+            archived: true,
+          }
+        : {
+            id: place.campaignId,
+            name: "Campagne",
+            tags: [],
+            logo: "",
+            cover: "",
+            screenshots: [],
+            archived: true,
+          });
       return place.campaignId
         ? <PublishedReviewScreen {...props} campaign={reviewCampaign} reportId={place.reportId} />
         : <DiscoverScreen {...props} />;

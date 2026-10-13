@@ -794,7 +794,8 @@ function PublishedReviewBody({ campaign, reportId, navigate, back, pageRef, open
   const own = savedState.publishedReviews[campaign.id] || savedState.reviewDrafts[campaign.id] || {};
   const removed = Boolean(reportId && liveReady && !live);
   const review = removed ? {} : (live || own);
-  const isOwn = live ? Boolean(live.authorId && user?.id === live.authorId) : true;
+  const isDemo = Boolean(live?.demo);
+  const isOwn = live ? Boolean(!isDemo && live.authorId && user?.id === live.authorId) : !reportId;
   const liked = Boolean(review.id && savedState.likedReviewIds.includes(review.id));
   const likes = (live?.likes ?? own.likes ?? 0) + (liked && !live ? 1 : 0);
   const profile = readProfile();
@@ -823,7 +824,7 @@ function PublishedReviewBody({ campaign, reportId, navigate, back, pageRef, open
   const replyText = question?.text || "";
   const replyDate = formatReviewDate(question?.sentAt || live?.publishedAt || own.publishedAt);
   async function like() {
-    if (isOwn || liked || !review.id) return;
+    if (isOwn || isDemo || liked || !review.id) return;
     setSavedState(updateV2State((current) => ({
       ...current,
       likedReviewIds: current.likedReviewIds.includes(review.id) ? current.likedReviewIds : [...current.likedReviewIds, review.id],

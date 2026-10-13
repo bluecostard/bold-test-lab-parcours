@@ -1,3 +1,5 @@
+import { findDemoReview } from "../../lib/demoTesterReviews.js";
+
 async function readJson(response) {
   try {
     return await response.json();
@@ -15,7 +17,8 @@ async function authHeader(getToken) {
 export async function getReview(campaignId, reviewId) {
   const response = await fetch(`/api/reviews?campaignId=${encodeURIComponent(campaignId)}&id=${encodeURIComponent(reviewId)}`);
   const data = await readJson(response);
-  return response.ok ? data.review : null;
+  if (response.ok && data.review) return data.review;
+  return findDemoReview(campaignId, reviewId);
 }
 
 export async function listReviews(campaignId) {
