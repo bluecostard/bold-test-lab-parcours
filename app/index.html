@@ -40,12 +40,30 @@
           document.getElementById("desktop-css").media = "all";
         } else {
           document.documentElement.classList.add("is-app");
+          document.querySelector('meta[name="theme-color"]').setAttribute("content", "#07111c");
         }
       })();
     </script>
     <style>
       html.is-app #desktop-site { display: none !important; }
       html:not(.is-app) #root { display: none !important; }
+      /* Splash HTML immédiat (avant React) — même look que le boot JS */
+      html.is-app, html.is-app body { background: #07111c; }
+      #boot-splash {
+        position: fixed; inset: 0; z-index: 10000;
+        display: grid; place-items: center;
+        margin: 0; padding: 24px; background: #07111c;
+      }
+      #boot-splash img {
+        display: block; width: min(220px, 58vw); height: auto;
+        object-fit: contain;
+        animation: boot-fade 1.4s ease-in-out infinite alternate;
+      }
+      @keyframes boot-fade { from { opacity: .78; } to { opacity: 1; } }
+      @media (prefers-reduced-motion: reduce) {
+        #boot-splash img { animation: none; opacity: 1; }
+      }
+      html:not(.is-app) #boot-splash { display: none !important; }
     </style>
   </head>
   <body>
@@ -183,7 +201,11 @@
         <a href="#">Retour en haut ↑</a>
       </footer>
     </div>
-    <div id="root"></div>
+    <div id="root">
+      <div id="boot-splash" role="status" aria-live="polite" aria-label="Chargement de Gemelo">
+        <img src="/logo-gemelo.png" alt="" width="220" height="41" />
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

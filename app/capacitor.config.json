@@ -23,14 +23,14 @@
   },
   "plugins": {
     "SplashScreen": {
-      "launchShowDuration": 400,
-      "launchAutoHide": true,
-      "backgroundColor": "#071426",
+      "launchShowDuration": 0,
+      "launchAutoHide": false,
+      "backgroundColor": "#07111c",
       "showSpinner": false
     },
     "StatusBar": {
       "style": "DARK",
-      "backgroundColor": "#071426"
+      "backgroundColor": "#07111c"
     },
     "PushNotifications": {
       "presentationOptions": ["badge", "sound", "alert"]

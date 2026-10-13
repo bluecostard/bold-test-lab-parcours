@@ -36,6 +36,7 @@ import {
   ResultsScreen,
 } from "./entrepreneur.jsx";
 import { SmokeScreen } from "./smoke.jsx";
+import { BootSplash, dismissBootSplash, hideNativeSplash } from "./BootSplash.jsx";
 import "./v2.css";
 
 const swipeIgnore = "input, textarea, .v2-screenshot-rail, .v2-project-rail, .v2-screenshot-viewer, .v2-pitch-viewer, .v2-drawer-root, .v2-drawer";
@@ -115,14 +116,13 @@ function ClerkStorageScope({ children }) {
     };
   }, [getToken, isLoaded, scope, user?.id]);
 
+  useEffect(() => {
+    if (scope === "pending" || !ready) return;
+    dismissBootSplash();
+  }, [scope, ready]);
+
   if (scope === "pending" || !ready) {
-    return (
-      <PageShell>
-        <main className="v2-stack">
-          <p className="v2-muted">Chargement…</p>
-        </main>
-      </PageShell>
-    );
+    return <BootSplash />;
   }
   return <div key={scope} style={{ display: "contents" }}>{children}</div>;
 }
@@ -180,6 +180,10 @@ export function AppV2() {
   const ignorePopCount = useRef(0);
   placeRef.current = place;
   drawerRef.current = drawer;
+
+  useEffect(() => {
+    if (!clerkKey) dismissBootSplash();
+  }, []);
 
   function show(next, scroll = topScroll) {
     pendingScroll.current = scroll;
@@ -654,20 +658,19 @@ export function AppV2() {
     return <DiscoverScreen {...props} />;
   })();
 
-  if (!ageOk && !isClerkAuthHash()) {
-    return (
-      <AgeGate onConfirm={() => {
-        confirmAge();
-        setAgeOk(true);
-      }} />
-    );
-  }
+  const ageGate = !ageOk && !isClerkAuthHash() ? (
+    <AgeGate onConfirm={() => {
+      confirmAge();
+      setAgeOk(true);
+    }} />
+  ) : null;
 
-  const tree = (
+  const tree = ageGate || (
     <>
       {screen}
       {place.screen === "besoin" ? null : <SideDrawer open={drawer} onClose={() => setDrawer(false)} navigate={navigate} />}
     </>
   );
+  /* Splash unique pendant Clerk/sync ; age gate seulement après, jamais pendant le load. */
   return clerkKey ? <ClerkStorageScope>{tree}</ClerkStorageScope> : tree;
 }
