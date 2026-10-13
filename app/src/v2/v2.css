@@ -607,6 +607,8 @@ button.v2-avis-frame {
 }
 .v2-wait-chip { background: #193453; color: #d6e0ec; }
 .v2-status-ok { background: rgba(214, 255, 74, .14); color: var(--v2-accent); }
+.v2-status-live { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; background: rgba(90, 168, 255, .16); color: #9ec9ff; font-size: 13px; font-weight: 800; }
+.v2-result-meta .v2-status-live { white-space: nowrap; }
 .v2-ghost-chip {
   margin-top: 12px; border: 1px solid #9fb7d4; background: transparent; color: var(--v2-text); cursor: pointer;
 }
