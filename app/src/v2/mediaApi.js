@@ -136,6 +136,42 @@ export function previewUrl(file) {
   return file ? URL.createObjectURL(file) : "";
 }
 
+/** Durée en secondes via métadonnées vidéo (navigateur). */
+export function readVideoDuration(file) {
+  if (!file) return Promise.reject(new Error("Fichier manquant."));
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    const finish = (fn) => {
+      URL.revokeObjectURL(url);
+      fn();
+    };
+    video.onloadedmetadata = () => {
+      const duration = Number(video.duration);
+      finish(() => {
+        if (!Number.isFinite(duration) || duration <= 0) {
+          reject(new Error("Impossible de lire la durée de cette vidéo."));
+          return;
+        }
+        resolve(duration);
+      });
+    };
+    video.onerror = () => {
+      finish(() => reject(new Error("Cette vidéo ne peut pas être ouverte. Essayez un MP4 ou un MOV.")));
+    };
+    video.src = url;
+  });
+}
+
+/** Affichage type maquette : "0:42" / "1:00". */
+export function formatPitchDuration(seconds) {
+  const total = Math.max(0, Math.min(60, Math.round(Number(seconds) || 0)));
+  const minutes = Math.floor(total / 60);
+  const rest = total % 60;
+  return `${minutes}:${String(rest).padStart(2, "0")}`;
+}
+
 function originUrl() {
   return typeof window !== "undefined" ? window.location.origin : "";
 }

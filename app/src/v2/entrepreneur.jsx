@@ -9,9 +9,11 @@ import { finishAppleProduct, isNativeIos, purchaseAppleProduct } from "./nativeP
 import { formatOfferPrice, formatStoredOfferPrice, offers } from "./data.js";
 import {
   forgetBlobFile,
+  formatPitchDuration,
   isHostedMedia,
   prepareImageFile,
   previewUrl,
+  readVideoDuration,
   rememberBlobFile,
   snapshotFiles,
   uploadMedia,
@@ -133,8 +135,13 @@ function reportCsv(reviews = []) {
   return rows.map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n");
 }
 
+function hasFounderPitch(account = readAccount()) {
+  const pitch = account.projectFounderPitch;
+  return Boolean(pitch?.src && isHostedMedia(pitch.src));
+}
+
 function hasProjectDraft(account = readAccount()) {
-  return Boolean(account.projectName?.trim() && account.projectPitch?.trim());
+  return Boolean(account.projectName?.trim() && account.projectPitch?.trim() && hasFounderPitch(account));
 }
 
 function ProjectSummary({ account }) {
@@ -193,15 +200,28 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken, mode = "campa
   const [tags, setTags] = useState(() => initialTags(saved));
   const [logo, setLogo] = useState(saved.projectLogo || "");
   const [screens, setScreens] = useState(saved.projectScreens || []);
+  const [founderPitch, setFounderPitch] = useState(() => (
+    saved.projectFounderPitch?.src
+      ? {
+          src: saved.projectFounderPitch.src,
+          poster: saved.projectFounderPitch.poster || "",
+          duration: saved.projectFounderPitch.duration || "",
+          name: saved.projectFounderPitch.name || "",
+        }
+      : null
+  ));
   const [socials, setSocials] = useState(saved.projectSocials?.length ? saved.projectSocials : [emptySocial()]);
   const [instructions, setInstructions] = useState(saved.projectInstructions?.length ? saved.projectInstructions : [emptyInstruction()]);
   const [errors, setErrors] = useState({});
   const [storageError, setStorageError] = useState("");
   const [imageError, setImageError] = useState("");
+  const [pitchError, setPitchError] = useState("");
+  const [pitchBusy, setPitchBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
   const logoInput = useRef(null);
   const screenInput = useRef(null);
+  const pitchInput = useRef(null);
 
   function toggleTag(tag) {
     setTags((current) => {
@@ -294,6 +314,77 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken, mode = "campa
       );
     }
   }
+
+  function clearFounderPitch() {
+    if (founderPitch?.src && !isHostedMedia(founderPitch.src)) {
+      forgetBlobFile(founderPitch.src);
+      URL.revokeObjectURL(founderPitch.src);
+    }
+    setFounderPitch(null);
+    setPitchError("");
+  }
+
+  async function choosePitch(event) {
+    const picked = Array.from(event.target.files || []);
+    event.target.value = "";
+    let file;
+    try {
+      file = (await snapshotFiles(picked))[0];
+    } catch {
+      setPitchError("Impossible de lire cette vidéo. Réessayez.");
+      return;
+    }
+    if (!file) return;
+    if (!String(file.type || "").startsWith("video/")) {
+      setPitchError("Choisissez une vidéo MP4 ou MOV.");
+      return;
+    }
+    setPitchError("");
+    setPitchBusy(true);
+    let local = "";
+    try {
+      const seconds = await readVideoDuration(file);
+      if (seconds > 60) {
+        setPitchError("La vidéo dépasse 1 minute. Choisissez un pitch de 60 secondes maximum.");
+        return;
+      }
+      const duration = formatPitchDuration(seconds);
+      local = previewUrl(file);
+      rememberBlobFile(local, file);
+      const nextPitch = {
+        src: local,
+        poster: logo || screens[0] || "",
+        duration,
+        name: file.name || "pitch.mp4",
+      };
+      if (founderPitch?.src && !isHostedMedia(founderPitch.src)) {
+        forgetBlobFile(founderPitch.src);
+        URL.revokeObjectURL(founderPitch.src);
+      }
+      setFounderPitch(nextPitch);
+      if (getToken) {
+        const uploaded = await uploadMedia(getToken, file, "video");
+        forgetBlobFile(local);
+        URL.revokeObjectURL(local);
+        setFounderPitch({
+          src: uploaded.url,
+          poster: logo || screens[0] || "",
+          duration,
+          name: uploaded.name || file.name || "pitch.mp4",
+        });
+      }
+    } catch (error) {
+      if (local) {
+        forgetBlobFile(local);
+        URL.revokeObjectURL(local);
+      }
+      setFounderPitch(null);
+      setPitchError(error.message || "Impossible d’ajouter cette vidéo. Essayez un MP4 ou un MOV.");
+    } finally {
+      setPitchBusy(false);
+    }
+  }
+
   async function save(event) {
     event.preventDefault();
     if (busy) return;
@@ -325,6 +416,10 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken, mode = "campa
     }
     if (logo && !isHostedMedia(logo)) next.logo = "Attendez la fin de l’envoi du logo (ou réessayez).";
     if (screens.some((src) => src && !isHostedMedia(src))) next.screens = "Attendez la fin de l’envoi des captures (ou réessayez).";
+    if (!community) {
+      if (!founderPitch?.src) next.founderPitch = "Le pitch entrepreneur est obligatoire (vidéo, 1 minute max.).";
+      else if (pitchBusy || !isHostedMedia(founderPitch.src)) next.founderPitch = "Attendez la fin de l’envoi du pitch (ou réessayez).";
+    }
     setErrors(next);
     setStorageError("");
     setSaveStatus("");
@@ -350,6 +445,14 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken, mode = "campa
       if (!community) {
         nextAccount.projectInstructions = instructions.map((item) => ({ title: item.title.trim(), text: item.text.trim() }));
         nextAccount.projectSteps = instructions.map((item) => item.text.trim()).join("\n\n");
+        nextAccount.projectFounderPitch = founderPitch?.src
+          ? {
+              src: founderPitch.src,
+              poster: founderPitch.poster || logo || screens[0] || "",
+              duration: founderPitch.duration || "1:00",
+              name: founderPitch.name || "",
+            }
+          : null;
       }
       writeAccount(nextAccount);
       if (community) {
@@ -368,6 +471,9 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken, mode = "campa
         payload.logo = isHostedMedia(payload.logo) ? payload.logo : "";
         payload.screenshots = (payload.screenshots || []).filter((src) => isHostedMedia(src));
         payload.cover = payload.screenshots[0] || payload.logo || "";
+        if (payload.founderPitch?.src && !isHostedMedia(payload.founderPitch.src)) {
+          payload.founderPitch = null;
+        }
         await publishCampaign(getToken, payload);
         setSaveStatus("Modifications enregistrées.");
         navigate("results", {}, true);
@@ -467,6 +573,58 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken, mode = "campa
           </Field>
         </Card>
         <Card><SectionTitle title="Visuels" description="Logo entier et jusqu’à 6 captures. JPG, PNG, WebP ou photo iPhone." /><div className="v2-logo-editor">{logo ? <img src={logo} alt="Aperçu du logo" /> : <span className="v2-logo-placeholder">Logo</span>}<div><Button type="button" variant="outline" onClick={() => logoInput.current?.click()}>{logo ? "Remplacer" : "Ajouter un logo"}</Button>{logo ? <button type="button" className="v2-text-button" onClick={() => setLogo("")}>Supprimer</button> : null}</div></div><input ref={logoInput} className="v2-hidden-input" type="file" accept="image/*,.heic,.heif" onChange={chooseLogo} /><div className="v2-capture-list">{screens.map((src, index) => <figure key={`${src.slice(-24)}-${index}`}><img src={src} alt={`Capture ${index + 1}`} /><button type="button" onClick={() => setScreens((current) => current.filter((_, position) => position !== index))} aria-label={`Supprimer la capture ${index + 1}`}>×</button></figure>)}</div><Button type="button" variant="outline" disabled={screens.length >= 6} onClick={() => screenInput.current?.click()}>Ajouter des captures ({screens.length}/6)</Button><input ref={screenInput} className="v2-hidden-input" type="file" accept="image/*,.heic,.heif" multiple onChange={chooseScreens} />{imageError ? <p className="v2-error" role="alert">{imageError}</p> : null}{errors.logo ? <p className="v2-error" role="alert">{errors.logo}</p> : null}{errors.screens ? <p className="v2-error" role="alert">{errors.screens}</p> : null}</Card>
+        {community ? null : (
+          <Card>
+            <SectionTitle
+              icon="▶"
+              title="Pitch entrepreneur"
+              description="Vidéo obligatoire · durée max. 1 minute. Les testeurs la voient sur votre page campagne."
+            />
+            {founderPitch?.src ? (
+              <div className="v2-logo-editor">
+                <div className="v2-pitch-preview">
+                  <video
+                    src={founderPitch.src}
+                    poster={founderPitch.poster || logo || screens[0] || undefined}
+                    controls
+                    playsInline
+                    preload="metadata"
+                  />
+                </div>
+                <div>
+                  <p className="v2-helper">
+                    {founderPitch.name || "Pitch vidéo"}
+                    {founderPitch.duration ? ` · ${founderPitch.duration}` : ""}
+                  </p>
+                  <Button type="button" variant="outline" disabled={pitchBusy} onClick={() => pitchInput.current?.click()}>
+                    {pitchBusy ? "Envoi…" : "Remplacer"}
+                  </Button>
+                  <button type="button" className="v2-text-button" disabled={pitchBusy} onClick={clearFounderPitch}>
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <label className={`v2-upload is-dashed${pitchBusy ? " is-busy" : ""}`}>
+                <span aria-hidden="true">▶</span>
+                <strong>Ajouter le pitch</strong>
+                <small>{pitchBusy ? "Envoi…" : "MP4 ou MOV · 1 minute max. · obligatoire"}</small>
+                <input
+                  ref={pitchInput}
+                  type="file"
+                  accept="video/*"
+                  disabled={pitchBusy}
+                  onChange={choosePitch}
+                />
+              </label>
+            )}
+            {founderPitch?.src ? (
+              <input ref={pitchInput} className="v2-hidden-input" type="file" accept="video/*" disabled={pitchBusy} onChange={choosePitch} />
+            ) : null}
+            {pitchError ? <p className="v2-error" role="alert">{pitchError}</p> : null}
+            {errors.founderPitch ? <p className="v2-error" role="alert">{errors.founderPitch}</p> : null}
+          </Card>
+        )}
         <Card><SectionTitle title="Réseaux sociaux" description={community ? "Facultatif — jusqu’à 6 réseaux avec une URL réelle." : "Au moins 1 réseau avec une URL réelle ; les autres sont facultatifs (max. 6)."} /><div className="v2-repeat-list">{socials.map((social, index) => <fieldset key={index}><legend>Réseau {index + 1}</legend><label className="v2-field"><span>Plateforme</span><select value={social.platform} onChange={(event) => setSocials((current) => current.map((item, position) => position === index ? { ...item, platform: event.target.value } : item))}><option value="">Choisir</option>{networks.map((network) => <option key={network} disabled={socials.some((item, position) => position !== index && item.platform === network)}>{network}</option>)}</select>{errors[`social-platform-${index}`] ? <small>{errors[`social-platform-${index}`]}</small> : null}</label><Field label="URL" error={errors[`social-url-${index}`]}><input type="url" placeholder="https://" value={social.url} onChange={(event) => setSocials((current) => current.map((item, position) => position === index ? { ...item, url: event.target.value } : item))} /></Field><button type="button" className="v2-text-button" onClick={() => setSocials((current) => current.filter((_, position) => position !== index))}>Supprimer</button></fieldset>)}</div>{errors.socials ? <p className="v2-error" role="alert">{errors.socials}</p> : null}<Button type="button" variant="outline" disabled={socials.length >= 6} onClick={() => setSocials((current) => [...current, emptySocial()])}>Ajouter un réseau</Button></Card>
         {community ? null : (
           <Card><SectionTitle title="Consignes" description="Chaque consigne contient un titre et un texte. Elles guident les testeurs pendant votre campagne payante." /><div className="v2-repeat-list">{instructions.map((instruction, index) => <fieldset key={index}><legend>Consigne {index + 1}</legend><Field label="Titre" error={errors[`instruction-title-${index}`]}><input value={instruction.title} onChange={(event) => setInstructions((current) => current.map((item, position) => position === index ? { ...item, title: event.target.value } : item))} /></Field><Field label="Texte" error={errors[`instruction-text-${index}`]}><textarea rows={3} value={instruction.text} onChange={(event) => setInstructions((current) => current.map((item, position) => position === index ? { ...item, text: event.target.value } : item))} /></Field><button type="button" className="v2-text-button" onClick={() => setInstructions((current) => current.filter((_, position) => position !== index))}>Supprimer</button></fieldset>)}</div>{errors.instructions ? <p className="v2-error">{errors.instructions}</p> : null}<Button type="button" variant="outline" onClick={() => setInstructions((current) => [...current, emptyInstruction()])}>Ajouter une consigne</Button></Card>
@@ -572,6 +730,8 @@ export function OfferScreen({ navigate, back, pageRef }) {
 
 function campaignPayload(account) {
   const tags = account.tags?.length ? account.tags : account.category ? [account.category] : [];
+  const pitch = account.projectFounderPitch;
+  const poster = pitch?.poster || account.projectLogo || account.projectScreens?.[0] || "";
   return {
     name: account.projectName,
     pitch: account.projectPitch,
@@ -580,6 +740,13 @@ function campaignPayload(account) {
     logo: account.projectLogo,
     cover: account.projectScreens?.[0] || account.projectLogo,
     screenshots: account.projectScreens || [],
+    founderPitch: pitch?.src
+      ? {
+          src: pitch.src,
+          poster,
+          duration: pitch.duration || "1:00",
+        }
+      : null,
     website: account.projectLink,
     appStore: account.projectAppStore || "",
     playStore: account.projectPlayStore || "",
@@ -670,6 +837,11 @@ function PaymentBody({ navigate, back, pageRef, getToken, user }) {
       payload.logo = isHostedMedia(payload.logo) ? payload.logo : "";
       payload.screenshots = (payload.screenshots || []).filter((src) => isHostedMedia(src));
       payload.cover = payload.screenshots[0] || payload.logo || "";
+      if (!payload.founderPitch?.src || !isHostedMedia(payload.founderPitch.src)) {
+        setError("Ajoutez le pitch entrepreneur (vidéo, 1 minute max.) avant de payer.");
+        navigate("entrepreneur", {}, true);
+        return;
+      }
       const common = {
         ...payload,
         offerLabel: next.offerLabel,

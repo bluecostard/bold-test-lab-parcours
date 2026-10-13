@@ -47,6 +47,14 @@ export async function syncAccountFromServer(getToken) {
     next.projectPlayStore = campaign.playStore || "";
     next.projectLogo = campaign.logo || "";
     next.projectScreens = Array.isArray(campaign.screenshots) ? campaign.screenshots : [];
+    next.projectFounderPitch = campaign.founderPitch?.src
+      ? {
+          src: campaign.founderPitch.src,
+          poster: campaign.founderPitch.poster || campaign.logo || "",
+          duration: campaign.founderPitch.duration || "1:00",
+          name: campaign.founderPitch.name || "",
+        }
+      : null;
     next.tags = Array.isArray(campaign.tags) ? campaign.tags : [];
     next.category = next.tags[0] || "";
     next.projectSocials = Array.isArray(campaign.socials)

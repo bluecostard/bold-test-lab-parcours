@@ -84,6 +84,13 @@ export default async function handler(req, res) {
         tags: Array.isArray(source.tags) ? source.tags.map((tag) => clean(tag, 40)).filter(Boolean).slice(0, 6) : [],
         logo: clean(source.logo, 500),
         screenshots: Array.isArray(source.screenshots) ? source.screenshots.filter(Boolean).slice(0, 6) : [],
+        founderPitch: source.founderPitch?.src
+          ? {
+              src: clean(source.founderPitch.src, 500),
+              poster: clean(source.founderPitch.poster, 500),
+              duration: clean(source.founderPitch.duration, 8) || "1:00",
+            }
+          : null,
         website: clean(source.website, 300),
         appStore: linkHref(productLinks, "App Store") || clean(source.appStore, 300),
         playStore: linkHref(productLinks, "Google Play") || clean(source.playStore, 300),

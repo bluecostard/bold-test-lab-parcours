@@ -55,6 +55,27 @@ export function mapInstruction(item) {
   return { title, detail: detail === title ? "" : detail };
 }
 
+/** Pitch vidéo entrepreneur : { src, poster, duration } — durée max 1 min (affichage). */
+export function mapFounderPitch(value, screenshots = [], logo = "") {
+  if (!value || typeof value !== "object") return null;
+  const src = shortMedia(value.src);
+  if (!src) return null;
+  const raw = clean(value.duration, 8);
+  const match = raw.match(/^(\d+):(\d{1,2})$/);
+  let duration = "1:00";
+  if (match) {
+    const seconds = Number(match[1]) * 60 + Number(match[2]);
+    if (seconds > 0 && seconds <= 60) {
+      duration = `${Number(match[1])}:${String(Number(match[2])).padStart(2, "0")}`;
+    }
+  }
+  return {
+    src,
+    poster: shortMedia(value.poster) || screenshots[0] || shortMedia(logo) || "",
+    duration,
+  };
+}
+
 /** Construit productLinks façon Bed Hop (App Store / Google Play / Visiter le site). */
 export function buildProductLinks(body = {}) {
   if (Array.isArray(body.productLinks) && body.productLinks.length) {
@@ -86,6 +107,7 @@ export function draftCampaign(userId, body) {
   const name = clean(body.name, 80);
   const screenshots = Array.isArray(body.screenshots) ? body.screenshots.map(shortMedia).filter(Boolean).slice(0, 6) : [];
   const website = clean(body.website, 300);
+  const logo = shortMedia(body.logo);
   return {
     id: `camp-${userId}`.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80),
     ownerId: userId,
@@ -93,9 +115,10 @@ export function draftCampaign(userId, body) {
     pitch: clean(body.pitch, 160),
     description: clean(body.description || body.pitch, 400),
     tags: Array.isArray(body.tags) ? body.tags.map((tag) => clean(tag, 40)).filter(Boolean).slice(0, 6) : [],
-    logo: shortMedia(body.logo),
-    cover: shortMedia(body.cover) || shortMedia(body.logo),
+    logo,
+    cover: shortMedia(body.cover) || logo,
     screenshots,
+    founderPitch: mapFounderPitch(body.founderPitch, screenshots, logo),
     website,
     productLinks: buildProductLinks({ ...body, name, website }),
     socials: mapSocials(body.socials),

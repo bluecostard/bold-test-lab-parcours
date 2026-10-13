@@ -18,6 +18,13 @@ function publicCampaign(campaign) {
     logo: campaign.logo || "",
     cover: campaign.cover || campaign.logo || "",
     screenshots: Array.isArray(campaign.screenshots) ? campaign.screenshots.filter(Boolean).slice(0, 6) : [],
+    founderPitch: campaign.founderPitch?.src
+      ? {
+          src: campaign.founderPitch.src,
+          poster: campaign.founderPitch.poster || campaign.cover || campaign.logo || "",
+          duration: campaign.founderPitch.duration || "1:00",
+        }
+      : null,
     website: campaign.website || "",
     productLinks: Array.isArray(campaign.productLinks) ? campaign.productLinks.slice(0, 6) : [],
     socials: mapSocials(campaign.socials),
@@ -62,6 +69,9 @@ export default async function handler(req, res) {
   const body = req.body || {};
   const campaign = draftCampaign(user.id, { ...booking.campaign, ...body });
   if (!campaign.name) return res.status(400).json({ error: "Indiquez le nom du projet." });
+  if (!campaign.founderPitch?.src) {
+    return res.status(400).json({ error: "Ajoutez le pitch entrepreneur (vidéo, 1 minute max.)." });
+  }
   const linkedSocials = (campaign.socials || []).filter((item) => item?.href);
   if (!linkedSocials.length) {
     return res.status(400).json({ error: "Ajoutez au moins 1 réseau social avec un lien valide." });

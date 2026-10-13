@@ -92,6 +92,9 @@ export default async function handler(req, res) {
   }
   const campaign = draftCampaign(user.id, body);
   if (!campaign.name) return res.status(400).json({ error: "Indiquez le nom du projet." });
+  if (!campaign.founderPitch?.src) {
+    return res.status(400).json({ error: "Ajoutez le pitch entrepreneur (vidéo, 1 minute max.)." });
+  }
   const bookingRef = `iap-${randomUUID()}`;
   await saveBooking({
     userId: user.id,
