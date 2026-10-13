@@ -3,9 +3,11 @@ import { readCampaign } from "../lib/campaignStore.js";
 import { hostedMediaUrl, publicPhotos } from "../lib/mediaUrl.js";
 import { listReviews, readReview, saveReview } from "../lib/reviewStore.js";
 
-async function knownCampaign(id) {
-  if (id === "bed-hop") return true;
-  return Boolean(await readCampaign(id));
+async function liveCampaignForPublish(id) {
+  if (id === "bed-hop") return { id: "bed-hop", name: "Bed Hop", live: true };
+  const campaign = await readCampaign(id);
+  if (!campaign || campaign.live === false) return null;
+  return campaign;
 }
 
 function clean(value, limit = 400) {
@@ -19,6 +21,7 @@ function publicReview(review) {
   return {
     id: review.id,
     campaignId: review.campaignId,
+    campaignName: review.campaignName || "",
     author: review.author,
     photo: review.photo || "",
     title: review.title,
@@ -45,8 +48,9 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     const campaignId = clean(req.query.campaignId || "", 80);
     const reviewId = clean(req.query.id || "", 80);
-    if (!(await knownCampaign(campaignId))) return res.status(400).json({ error: "Campagne inconnue." });
+    if (!campaignId) return res.status(400).json({ error: "Campagne manquante." });
     try {
+      // Lecture autorisée même si la campagne n’est plus live : les avis restent disponibles.
       if (reviewId) {
         const review = await readReview(campaignId, reviewId);
         if (!review || review.hidden) return res.status(404).json({ error: "Avis introuvable." });
@@ -64,15 +68,18 @@ export default async function handler(req, res) {
   if (!user) return res.status(401).json({ error: "Connectez-vous pour publier." });
   const body = req.body || {};
   const campaignId = clean(body.campaignId, 80);
-  if (!(await knownCampaign(campaignId))) return res.status(400).json({ error: "Les avis se déposent uniquement sur une campagne entrepreneur." });
+  const campaign = await liveCampaignForPublish(campaignId);
+  if (!campaign) return res.status(400).json({ error: "Les avis se déposent uniquement sur une campagne entrepreneur en cours." });
   const text = clean(body.text || body.body, 2000);
   if (!text) return res.status(400).json({ error: "Écrivez votre avis." });
   const photos = publicPhotos(body.photos);
   const screenshot = hostedMediaUrl(body.screenshot) || photos[0]?.url || "";
   const videoUrl = hostedMediaUrl(body.videoUrl);
+  const campaignName = clean(body.campaignName || campaign.name || "", 80);
   const review = {
     id: `avis-${user.id}-${campaignId}`.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80),
     campaignId,
+    campaignName,
     authorId: user.id,
     author: clean(body.author, 80) || "Testeur",
     photo: clean(body.photo, 500),

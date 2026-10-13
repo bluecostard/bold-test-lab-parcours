@@ -11,20 +11,8 @@ async function readJson(response) {
 }
 
 function seedRows() {
-  const projectByName = {
-    Léa: "doctolib",
-    Thomas: "du-rose-au-noir",
-    Camille: "comptoir-du-oui",
-    Alex: "sncf-connect",
-    Sophie: "blablacar",
-    Julien: "vinted",
-    Manon: "leboncoin",
-    Nicolas: "lydia",
-    Élise: "deezer",
-    Maxime: "signal",
-  };
   return seedRanking.map((row, index) => {
-    const projectId = projectByName[row.name] || "";
+    const projectId = row.projectId || "";
     return {
       id: `seed-${row.name}`,
       authorId: "",

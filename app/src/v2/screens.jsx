@@ -765,6 +765,7 @@ function PublishedReviewBody({ campaign, reportId, navigate, back, pageRef, open
   const [bannerOpen, setBannerOpen] = useState(true);
   const [live, setLive] = useState(null);
   const [liveReady, setLiveReady] = useState(false);
+  const [archivedCampaign, setArchivedCampaign] = useState(null);
   useEffect(() => {
     if (!campaign?.id) return;
     setLiveReady(false);
@@ -773,6 +774,23 @@ function PublishedReviewBody({ campaign, reportId, navigate, back, pageRef, open
       : listReviews(campaign.id).then((items) => items.find((item) => item.authorId && user?.id && item.authorId === user.id) || null);
     load.then((item) => setLive(item || null)).catch(() => setLive(null)).finally(() => setLiveReady(true));
   }, [campaign.id, reportId, user?.id]);
+  useEffect(() => {
+    if (!campaign?.archived || !campaign?.id) {
+      setArchivedCampaign(null);
+      return undefined;
+    }
+    let cancelled = false;
+    fetch(`/api/campaigns?id=${encodeURIComponent(campaign.id)}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.campaign) setArchivedCampaign(data.campaign);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [campaign?.archived, campaign?.id]);
+  const displayCampaign = archivedCampaign
+    ? { ...archivedCampaign, archived: true }
+    : campaign;
   const own = savedState.publishedReviews[campaign.id] || savedState.reviewDrafts[campaign.id] || {};
   const removed = Boolean(reportId && liveReady && !live);
   const review = removed ? {} : (live || own);
@@ -786,7 +804,8 @@ function PublishedReviewBody({ campaign, reportId, navigate, back, pageRef, open
   const publishedDate = formatReviewDate(live?.publishedAt || own.publishedAt);
   const title = live?.title || "Mon retour d’expérience";
   const body = live?.body || review.text || "Votre avis est enregistré sur cet appareil.";
-  const media = reviewMedia(review, campaign);
+  const campaignName = live?.campaignName || displayCampaign.name || "Campagne";
+  const media = reviewMedia(review, displayCampaign);
   const [question, setQuestion] = useState(null);
   const [flagOpen, setFlagOpen] = useState(false);
   const [flagReason, setFlagReason] = useState("illicite");
@@ -820,7 +839,7 @@ function PublishedReviewBody({ campaign, reportId, navigate, back, pageRef, open
     }
   }
   async function share() {
-    const message = isOwn ? `Mon avis sur ${campaign.name}` : `Avis de ${authorName} sur ${campaign.name}`;
+    const message = isOwn ? `Mon avis sur ${campaignName}` : `Avis de ${authorName} sur ${campaignName}`;
     const copy = `${message}\n${body}`;
     if (navigator.share) await navigator.share({ title: message, text: body });
     else if (navigator.clipboard) await navigator.clipboard.writeText(copy);
@@ -868,8 +887,12 @@ function PublishedReviewBody({ campaign, reportId, navigate, back, pageRef, open
         <div className="v2-page-title">
           <BackButton onClick={back}>{""}</BackButton>
           <div>
-            <h1>Avis sur <span className="v2-accent">{campaign.name}</span></h1>
-            <p className="v2-muted">Des retours authentiques de testeurs</p>
+            <h1>Avis sur <span className="v2-accent">{campaignName}</span></h1>
+            <p className="v2-muted">
+              {displayCampaign.archived || campaign.archived
+                ? "Campagne terminée — avis toujours disponible"
+                : "Des retours authentiques de testeurs"}
+            </p>
           </div>
         </div>
         <section className="v2-avis-author">
@@ -880,7 +903,7 @@ function PublishedReviewBody({ campaign, reportId, navigate, back, pageRef, open
           </div>
           <time dateTime={publishedDate}>{publishedDate}</time>
         </section>
-        <Tags items={campaign.tags} />
+        <Tags items={displayCampaign.tags || []} />
         <h2 className="v2-avis-title">{title}</h2>
         <p className="v2-avis-body">{body}</p>
         <div className="v2-avis-media">
@@ -1012,10 +1035,10 @@ function PublishedReviewBody({ campaign, reportId, navigate, back, pageRef, open
           <article className="v2-avis-reply">
             <div className="v2-avis-reply-head">
               <span className="v2-avis-brand">
-                <img src={campaign.logo} alt={campaign.name} />
+                {displayCampaign.logo ? <img src={displayCampaign.logo} alt={campaignName} /> : <span aria-hidden="true">◎</span>}
               </span>
               <div>
-                <strong>{campaign.name}</strong>
+                <strong>{campaignName}</strong>
                 <span>Entrepreneur</span>
               </div>
               <time dateTime={replyDate}>{replyDate}</time>
@@ -1272,13 +1295,13 @@ function RankingBody({ navigate, pageRef, openDrawer, getToken }) {
     <ShellWithNav active="ranking" navigate={navigate} pageRef={pageRef} openDrawer={openDrawer}>
       <main className="v2-stack">
         <div><h1>Classement <span className="v2-accent">des testeurs</span></h1><p className="v2-muted">30 derniers jours</p></div>
-        <p className="v2-description">Les avis précis et appréciés font gagner des points. Un like sur votre propre avis ne compte pas. Les lignes marquées « Exemple » complètent le classement tant qu’il n’y a pas assez de testeurs.</p>
+        <p className="v2-description">Les avis précis et appréciés font gagner des points. Un like sur votre propre avis ne compte pas. Faites défiler pour voir jusqu’à 50 testeurs. Les lignes « Exemple » complètent le classement.</p>
         <ol className="v2-ranking-podium">
           {podium.map((person) => (
             <RankingRow key={person.id || person.name} person={person} place={person.place} className={`is-podium is-${person.place}`} navigate={navigate} />
           ))}
         </ol>
-        <ol className="v2-ranking-list" start={4}>
+        <ol className="v2-ranking-list" start={4} aria-label={`Classement des testeurs, ${rows.length} sur 50`}>
           {rest.map((person) => (
             <RankingRow key={person.id || person.name} person={person} place={person.place} className={person.place <= 5 ? "is-top5" : ""} navigate={navigate} />
           ))}
@@ -1298,7 +1321,6 @@ function RankingBody({ navigate, pageRef, openDrawer, getToken }) {
 }
 
 export function TesterPublicScreen({ authorId, authorName, projectId, navigate, back, pageRef, openDrawer }) {
-  const catalog = useCampaignCatalog();
   const [profile, setProfile] = useState(undefined);
   useEffect(() => {
     let cancelled = false;
@@ -1315,13 +1337,9 @@ export function TesterPublicScreen({ authorId, authorName, projectId, navigate, 
   const projectLabel = tester?.projectName || "";
 
   function openReview(review) {
-    if (!review?.campaignId) return;
-    const inCatalog = catalog.some((item) => item.id === review.campaignId) || review.campaignId === "bed-hop";
-    if (inCatalog && review.id) {
-      navigate("review-published", { campaignId: review.campaignId, reportId: review.id });
-      return;
-    }
-    navigate("browse", { campaignId: review.campaignId });
+    if (!review?.campaignId || !review?.id) return;
+    // Avis toujours ouvrables, même si la campagne n’est plus au catalogue.
+    navigate("review-published", { campaignId: review.campaignId, reportId: review.id });
   }
 
   return (

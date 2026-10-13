@@ -75,8 +75,29 @@ const byAuthor = {
   ],
 };
 
+const FALLBACK_APPS = [
+  { campaignId: "bed-hop", campaignName: "Bed Hop" },
+  { campaignId: "doctolib", campaignName: "Doctolib" },
+  { campaignId: "sncf-connect", campaignName: "SNCF Connect" },
+  { campaignId: "vinted", campaignName: "Vinted" },
+  { campaignId: "blablacar", campaignName: "BlaBlaCar" },
+];
+
+function fallbackReviews(name) {
+  const slug = String(name || "testeur").toLowerCase().replace(/[^a-z0-9]+/gi, "-").slice(0, 24);
+  return FALLBACK_APPS.map((app, index) => ({
+    id: `demo-${slug}-${app.campaignId}`,
+    campaignId: app.campaignId,
+    campaignName: app.campaignName,
+    title: `Retour sur ${app.campaignName}`,
+    text: `Avis de ${name || "ce testeur"} : le parcours se comprend bien, avec un détail utile à garder.`,
+    likes: Math.max(1, 8 - index),
+    publishedAt: new Date(Date.UTC(2024, 4, 20 - index)).toISOString(),
+  }));
+}
+
 export function demoReviewsForAuthor(name) {
-  const list = byAuthor[name] || [];
+  const list = byAuthor[name]?.length ? byAuthor[name] : fallbackReviews(name);
   return list.slice(0, 5).map((review) => ({ ...review }));
 }
 

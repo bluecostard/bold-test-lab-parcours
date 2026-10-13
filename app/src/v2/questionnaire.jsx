@@ -287,6 +287,7 @@ function ReportCheckBody({ campaign, navigate, back, pageRef, signedIn, openDraw
         const profile = readProfile();
         const saved = await publishReview(getToken, {
           campaignId: campaign.id,
+          campaignName: campaign.name || "",
           author: readPublicPseudo(user) || profile.name || "Testeur",
           photo: profile.avatar || "",
           title: "Mon retour d’expérience",

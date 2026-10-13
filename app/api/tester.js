@@ -44,7 +44,7 @@ async function liveReviewsForAuthor(authorId, name) {
   const top = matched.slice(0, 5);
   const cards = [];
   for (const review of top) {
-    const campaignName = await resolveCampaignName(review.campaignId);
+    const campaignName = review.campaignName || await resolveCampaignName(review.campaignId);
     cards.push(publicReviewCard(review, campaignName));
   }
   return cards;

@@ -375,18 +375,7 @@ export const exploreWeb = exploreCatalog.map((item) => {
 
 export const browseProjects = [...testerRail, ...exploreWeb.filter((item) => !testerRail.some((project) => project.id === item.id))];
 
-export const ranking = [
-  { name: "Léa", tested: 48, points: 420, phrase: "Toujours à l’affût de nouveaux lieux", photo: "/visuels/lea.jpg" },
-  { name: "Thomas", tested: 41, points: 395, phrase: "Nature, cafés et bonnes adresses", photo: "/visuels/thomas.jpg" },
-  { name: "Camille", tested: 34, points: 368, phrase: "Explorer pour mieux vivre", photo: "/visuels/camille.jpg" },
-  { name: "Alex", tested: 29, points: 340, phrase: "Des idées pour un quotidien meilleur", photo: "/visuels/alex.jpg" },
-  { name: "Sophie", tested: 25, points: 312, phrase: "Bien-être et découverte", photo: "/visuels/sophie.jpg" },
-  { name: "Julien", tested: 22, points: 290, phrase: "Toujours curieux", photo: "/visuels/julien.jpg" },
-  { name: "Manon", tested: 18, points: 276, phrase: "Cafés, culture, petits plaisirs", photo: "/visuels/manon.jpg" },
-  { name: "Nicolas", tested: 15, points: 258, phrase: "Tester pour partager", photo: "/visuels/nicolas.jpg" },
-  { name: "Élise", tested: 12, points: 241, phrase: "Naturellement curieuse", photo: "/visuels/elise.jpg" },
-  { name: "Maxime", tested: 9, points: 228, phrase: "Des avis utiles avant tout", photo: "/visuels/maxime.jpg" },
-];
+export { seedRanking as ranking } from "../../lib/seedRanking.js";
 
 export const demoReports = [
   {

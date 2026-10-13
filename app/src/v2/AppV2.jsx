@@ -173,8 +173,11 @@ export function AppV2() {
   const pendingScroll = useRef(topScroll);
   const placeRef = useRef(place);
   const drawerRef = useRef(false);
-  /** Évite un second applyBack quand on synchronise history.back() après un retour JS. */
-  const syncingHistory = useRef(false);
+  /**
+   * Compteur de popstate à ignorer : on appelle history.back() après un retour JS
+   * pour aligner la pile navigateur, sans rejouer applyBack (sinon → Accueil en 1 geste).
+   */
+  const ignorePopCount = useRef(0);
   placeRef.current = place;
   drawerRef.current = drawer;
 
@@ -201,9 +204,9 @@ export function AppV2() {
       campaignId: "campaignId" in params ? params.campaignId : current.campaignId,
       reportId: "reportId" in params ? params.reportId : current.reportId,
       from: "from" in params ? params.from : current.from,
-      authorId: "authorId" in params ? params.authorId : current.authorId,
-      authorName: "authorName" in params ? params.authorName : current.authorName,
-      projectId: "projectId" in params ? params.projectId : current.projectId,
+      authorId: "authorId" in params ? params.authorId : null,
+      authorName: "authorName" in params ? params.authorName : null,
+      projectId: "projectId" in params ? params.projectId : (screen === "browse" ? (params.campaignId ?? current.projectId) : null),
     };
     const moved = current.screen !== next.screen
       || current.campaignId !== next.campaignId
@@ -246,16 +249,7 @@ export function AppV2() {
     return true;
   }
 
-  function syncBrowserBack() {
-    if (window.history.length <= 1) return;
-    syncingHistory.current = true;
-    try {
-      window.history.back();
-    } catch {
-      syncingHistory.current = false;
-    }
-  }
-
+  /** Un seul cran dans la pile app ; aligne le navigateur sans second applyBack. */
   function back() {
     if (interceptBack.current?.()) return;
     if (drawerRef.current) {
@@ -263,8 +257,18 @@ export function AppV2() {
       return;
     }
     if (!history.current.length) return;
-    applyBack();
-    syncBrowserBack();
+    const ok = applyBack();
+    if (!ok) return;
+    try {
+      if (window.history.state?.gemelo) {
+        ignorePopCount.current += 1;
+        window.history.back();
+      } else {
+        window.history.replaceState({ gemelo: true, screen: placeRef.current.screen }, "");
+      }
+    } catch {
+      ignorePopCount.current = Math.max(0, ignorePopCount.current - 1);
+    }
   }
   backRef.current = back;
 
@@ -303,8 +307,8 @@ export function AppV2() {
       }
     }
     function onPop() {
-      if (syncingHistory.current) {
-        syncingHistory.current = false;
+      if (ignorePopCount.current > 0) {
+        ignorePopCount.current -= 1;
         return;
       }
       if (interceptBack.current?.()) {
@@ -411,7 +415,6 @@ export function AppV2() {
       dim.style.opacity = String(0.18 + progress * 0.22);
     }
     function stopMove() {
-      document.removeEventListener("touchmove", move, moveOpts);
       document.removeEventListener("pointermove", move, moveOpts);
     }
     function shouldCommit(dx) {
@@ -515,7 +518,6 @@ export function AppV2() {
       dragging = false;
       committed = false;
       pageEl = resolvePage();
-      document.addEventListener("touchmove", move, moveOpts);
       document.addEventListener("pointermove", move, moveOpts);
     }
     function move(event) {
@@ -573,17 +575,12 @@ export function AppV2() {
       }
     }
 
-    document.addEventListener("touchstart", begin, startOpts);
-    document.addEventListener("touchend", end, startOpts);
-    document.addEventListener("touchcancel", cancel, startOpts);
+    /* Pointer seul : éviter touch + pointer (double commit → Accueil). */
     document.addEventListener("pointerdown", begin, startOpts);
     document.addEventListener("pointerup", end, startOpts);
     document.addEventListener("pointercancel", cancel, startOpts);
     return () => {
       stopMove();
-      document.removeEventListener("touchstart", begin, startOpts);
-      document.removeEventListener("touchend", end, startOpts);
-      document.removeEventListener("touchcancel", cancel, startOpts);
       document.removeEventListener("pointerdown", begin, startOpts);
       document.removeEventListener("pointerup", end, startOpts);
       document.removeEventListener("pointercancel", cancel, startOpts);
@@ -603,7 +600,20 @@ export function AppV2() {
     if (place.screen === "report-form") return campaign ? <ReportFormScreen {...props} campaign={campaign} /> : <DiscoverScreen {...props} />;
     if (place.screen === "report-check") return campaign ? <ReportCheckScreen {...props} campaign={campaign} /> : <DiscoverScreen {...props} />;
     if (place.screen === "login") return <LoginScreen {...props} from={place.from} campaignId={place.campaignId} />;
-    if (place.screen === "review-published") return campaign ? <PublishedReviewScreen {...props} campaign={campaign} reportId={place.reportId} /> : <DiscoverScreen {...props} />;
+    if (place.screen === "review-published") {
+      const reviewCampaign = campaign || {
+        id: place.campaignId,
+        name: "Campagne",
+        tags: [],
+        logo: "",
+        cover: "",
+        screenshots: [],
+        archived: true,
+      };
+      return place.campaignId
+        ? <PublishedReviewScreen {...props} campaign={reviewCampaign} reportId={place.reportId} />
+        : <DiscoverScreen {...props} />;
+    }
     if (place.screen === "optional-question") return campaign ? <OptionalQuestionScreen {...props} campaign={campaign} reportId={place.reportId} /> : <DiscoverScreen {...props} />;
     if (place.screen === "community") return <CommunityScreen {...props} />;
     if (place.screen === "explore") return <ExploreScreen {...props} />;

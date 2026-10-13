@@ -50,7 +50,8 @@ export default async function handler(req, res) {
     try {
       if (id) {
         const campaign = await readCampaign(id);
-        if (!campaign || campaign.live === false) return res.status(404).json({ error: "Campagne introuvable." });
+        // Lecture unitaire même si la campagne n’est plus live (avis / historique).
+        if (!campaign) return res.status(404).json({ error: "Campagne introuvable." });
         return res.status(200).json({ campaign: publicCampaign(campaign) });
       }
       const campaigns = (await listCampaigns()).filter((item) => item.live !== false);
