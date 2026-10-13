@@ -32,7 +32,7 @@ if (root) {
         <ClerkProvider
           publishableKey={clerkKey}
           localization={frFR}
-          afterSignOutUrl="/"
+          afterSignOutUrl="/?ecran=login"
           allowedRedirectOrigins={clerkOrigins}
         >
           <RootApp />

@@ -170,9 +170,11 @@ function DeleteAccountCard({ navigate }) {
     }
     clearGemeloStorage();
     try {
-      await signOut({ redirectUrl: "/" });
+      await signOut(() => {
+        navigate("login");
+      });
     } catch {
-      navigate("discover");
+      navigate("login");
     }
   }
 
@@ -332,7 +334,7 @@ export function SettingsScreen({ back, pageRef, navigate, openDrawer }) {
           <div className="v2-delete-account">
             <h2>Supprimer mon compte</h2>
             <p>Efface les données Gemelo enregistrées dans ce navigateur.</p>
-            <Button type="button" variant="outline" onClick={() => { clearGemeloStorage(); navigate("discover"); }}>
+            <Button type="button" variant="outline" onClick={() => { clearGemeloStorage(); navigate("login"); }}>
               Effacer cet appareil
             </Button>
           </div>

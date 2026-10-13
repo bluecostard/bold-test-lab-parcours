@@ -1,6 +1,8 @@
 import { listAllReviews, listLikeEvents } from "./reviewStore.js";
+import { projectNameFor } from "./projectNames.js";
 
 export const RANK_WINDOW_DAYS = 30;
+export const RANKING_LIMIT = 50;
 const WINDOW_MS = RANK_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
 const seedRanking = [
@@ -22,6 +24,7 @@ function inWindow(iso, now) {
 }
 
 function publicRow(row, place) {
+  const projectId = row.projectId || "";
   return {
     id: row.id,
     authorId: row.authorId || "",
@@ -30,9 +33,27 @@ function publicRow(row, place) {
     phrase: row.phrase || "Avis utiles",
     points: row.points,
     tested: row.tested,
-    projectId: row.projectId || "",
+    projectId,
+    projectName: row.projectName || projectNameFor(projectId),
     live: Boolean(row.live),
     place,
+  };
+}
+
+export function getSeedRankingRow(name) {
+  const row = seedRanking.find((item) => item.name === name);
+  if (!row) return null;
+  return {
+    id: `seed-${row.name}`,
+    authorId: "",
+    name: row.name,
+    photo: row.photo,
+    phrase: row.phrase,
+    points: row.points,
+    tested: row.tested,
+    projectId: row.projectId,
+    projectName: projectNameFor(row.projectId),
+    live: false,
   };
 }
 
@@ -83,7 +104,7 @@ export async function buildRanking(userId = "") {
     }));
 
   const combined = [...live, ...seed].sort((a, b) => b.points - a.points || b.tested - a.tested || a.name.localeCompare(b.name, "fr"));
-  const ranking = combined.slice(0, 10).map((row, index) => publicRow(row, index + 1));
+  const ranking = combined.slice(0, RANKING_LIMIT).map((row, index) => publicRow(row, index + 1));
 
   let me = null;
   if (userId) {
@@ -95,5 +116,19 @@ export async function buildRanking(userId = "") {
     };
   }
 
-  return { ranking, me, windowDays: RANK_WINDOW_DAYS };
+  return { ranking, me, windowDays: RANK_WINDOW_DAYS, limit: RANKING_LIMIT };
+}
+
+/** Profil public + place dans le classement (jusqu’à la limite). */
+export async function findRankingPerson({ authorId = "", name = "" } = {}) {
+  const { ranking } = await buildRanking("");
+  const byAuthor = authorId ? ranking.find((row) => row.authorId === authorId || row.id === authorId) : null;
+  if (byAuthor) return byAuthor;
+  if (name) {
+    const byName = ranking.find((row) => row.name === name);
+    if (byName) return byName;
+    const seed = getSeedRankingRow(name);
+    if (seed) return { ...seed, place: 0 };
+  }
+  return null;
 }

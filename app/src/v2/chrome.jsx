@@ -39,7 +39,6 @@ function DrawerBody({ navigate, onClose, signedIn, name, onSignOut }) {
       <img src="/logo-gemelo.png" alt="Gemelo" />
       {signedIn && name ? <p className="v2-drawer-name">{name}</p> : null}
       <nav>
-        <button type="button" onClick={() => go("discover")}>Accueil</button>
         <button type="button" onClick={() => go("profile")}>Profil</button>
         <button type="button" onClick={() => go("results")}>Mes résultats</button>
         <button type="button" onClick={() => go("messages")}>Messages</button>
@@ -57,7 +56,7 @@ function DrawerBody({ navigate, onClose, signedIn, name, onSignOut }) {
 async function signOutLocally(onClose, navigate) {
   setLocalUser(null);
   onClose();
-  navigate("discover");
+  navigate("login");
 }
 
 function ClerkDrawer(props) {
@@ -72,9 +71,11 @@ function ClerkDrawer(props) {
         setLocalUser(null);
         props.onClose();
         try {
-          await signOut({ redirectUrl: "/" });
+          await signOut(() => {
+            props.navigate("login");
+          });
         } catch {
-          props.navigate("discover");
+          props.navigate("login");
         }
       }}
     />

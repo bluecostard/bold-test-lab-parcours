@@ -22,6 +22,7 @@ import {
   RankingScreen,
   ReviewFormScreen,
   TesterProjectScreen,
+  TesterPublicScreen,
 } from "./screens.jsx";
 import { ReportDetailScreen } from "./report-detail.jsx";
 import { SettingsScreen } from "./settings.jsx";
@@ -37,11 +38,17 @@ import {
 import { SmokeScreen } from "./smoke.jsx";
 import "./v2.css";
 
-const swipeIgnore = "input, textarea, .v2-screenshot-rail, .v2-project-rail, .v2-screenshot-viewer, .v2-pitch-viewer, .v2-drawer";
-const homePlace = { screen: "discover", campaignId: null, reportId: null, from: null };
+const swipeIgnore = "input, textarea, .v2-screenshot-rail, .v2-project-rail, .v2-screenshot-viewer, .v2-pitch-viewer, .v2-drawer-root, .v2-drawer";
+const homePlace = { screen: "discover", campaignId: null, reportId: null, from: null, authorId: null, authorName: null, projectId: null };
 const topScroll = { scrollY: 0, railLeft: 0 };
-const EDGE_PX = 48;
-const SWIPE_DX = 56;
+/** Zone de démarrage du geste (bord gauche écran, style iOS). */
+const EDGE_PX = 28;
+/** Seuil de commit en px (sinon annulation + ressort). */
+const COMMIT_DX = 96;
+/** Seuil relatif à la largeur du viewport. */
+const COMMIT_RATIO = 0.32;
+/** Vitesse minimale (px/ms) pour commit anticipé. */
+const COMMIT_VELOCITY = 0.55;
 
 function isClerkAuthHash() {
   return /^#\/(verify|sign-up|sign-in|factor|continue|sso-callback|oauth)/i.test(window.location.hash);
@@ -127,6 +134,9 @@ function placeOnly(entry) {
     campaignId: entry.campaignId ?? null,
     reportId: entry.reportId ?? null,
     from: entry.from ?? null,
+    authorId: entry.authorId ?? null,
+    authorName: entry.authorName ?? null,
+    projectId: entry.projectId ?? null,
   };
 }
 
@@ -148,7 +158,7 @@ export function AppV2() {
   const [ageOk, setAgeOk] = useState(hasConfirmedAge);
   const [place, setPlace] = useState(() => {
     const requested = new URLSearchParams(window.location.search).get("ecran");
-    if (requested === "profile" || requested === "confirmation" || requested === "offer" || requested === "payment" || requested === "besoin") {
+    if (requested === "profile" || requested === "confirmation" || requested === "offer" || requested === "payment" || requested === "besoin" || requested === "login") {
       return { ...homePlace, screen: requested };
     }
     if (isClerkAuthHash()) return { ...homePlace, screen: "login" };
@@ -159,9 +169,14 @@ export function AppV2() {
   const pageRef = useRef(null);
   const interceptBack = useRef(null);
   const backRef = useRef(() => {});
+  const canBackRef = useRef(() => false);
   const pendingScroll = useRef(topScroll);
   const placeRef = useRef(place);
+  const drawerRef = useRef(false);
+  /** Évite un second applyBack quand on synchronise history.back() après un retour JS. */
+  const syncingHistory = useRef(false);
   placeRef.current = place;
+  drawerRef.current = drawer;
 
   function show(next, scroll = topScroll) {
     pendingScroll.current = scroll;
@@ -180,47 +195,76 @@ export function AppV2() {
       }
       return;
     }
+    const current = placeRef.current;
+    const next = {
+      screen,
+      campaignId: "campaignId" in params ? params.campaignId : current.campaignId,
+      reportId: "reportId" in params ? params.reportId : current.reportId,
+      from: "from" in params ? params.from : current.from,
+      authorId: "authorId" in params ? params.authorId : current.authorId,
+      authorName: "authorName" in params ? params.authorName : current.authorName,
+      projectId: "projectId" in params ? params.projectId : current.projectId,
+    };
+    const moved = current.screen !== next.screen
+      || current.campaignId !== next.campaignId
+      || current.reportId !== next.reportId
+      || current.authorId !== next.authorId
+      || current.authorName !== next.authorName
+      || current.projectId !== next.projectId;
     const saved = captureScroll();
-    let pushed = false;
-    setPlace((current) => {
-      const next = {
-        screen,
-        campaignId: "campaignId" in params ? params.campaignId : current.campaignId,
-        reportId: "reportId" in params ? params.reportId : current.reportId,
-        from: "from" in params ? params.from : current.from,
-      };
-      const moved = current.screen !== next.screen || current.campaignId !== next.campaignId || current.reportId !== next.reportId;
-      if (!replace && moved) {
-        history.current.push({ ...current, ...saved });
-        pushed = true;
+    if (!replace && moved) {
+      history.current.push({ ...current, ...saved });
+      try {
+        window.history.pushState({ gemelo: true, screen }, "");
+      } catch {
+        /* ignore */
       }
-      return next;
-    });
-    try {
-      if (replace) window.history.replaceState({ gemelo: true, screen }, "");
-      else if (pushed) window.history.pushState({ gemelo: true, screen }, "");
-    } catch {
-      /* ignore */
+    } else if (replace) {
+      try {
+        window.history.replaceState({ gemelo: true, screen }, "");
+      } catch {
+        /* ignore */
+      }
     }
-    pendingScroll.current = topScroll;
-    setDrawer(false);
+    show(next, topScroll);
   }
+
+  function canGoBack() {
+    return Boolean(interceptBack.current || drawerRef.current || history.current.length);
+  }
+  canBackRef.current = canGoBack;
 
   function applyBack() {
     if (interceptBack.current?.()) return true;
+    if (drawerRef.current) {
+      setDrawer(false);
+      return true;
+    }
     const previous = history.current.pop();
-    show(placeOnly(previous), previous ? { scrollY: previous.scrollY || 0, railLeft: previous.railLeft || 0 } : topScroll);
-    return Boolean(previous);
+    if (!previous) return false;
+    show(placeOnly(previous), { scrollY: previous.scrollY || 0, railLeft: previous.railLeft || 0 });
+    return true;
+  }
+
+  function syncBrowserBack() {
+    if (window.history.length <= 1) return;
+    syncingHistory.current = true;
+    try {
+      window.history.back();
+    } catch {
+      syncingHistory.current = false;
+    }
   }
 
   function back() {
     if (interceptBack.current?.()) return;
-    // Préférer history.back pour le geste iOS natif (allowsBackForwardNavigationGestures).
-    if (history.current.length && window.history.length > 1) {
-      window.history.back();
+    if (drawerRef.current) {
+      setDrawer(false);
       return;
     }
+    if (!history.current.length) return;
     applyBack();
+    syncBrowserBack();
   }
   backRef.current = back;
 
@@ -251,22 +295,33 @@ export function AppV2() {
     } catch {
       /* ignore */
     }
+    function stayInApp() {
+      try {
+        window.history.pushState({ gemelo: true, screen: placeRef.current.screen }, "");
+      } catch {
+        /* ignore */
+      }
+    }
     function onPop() {
-      // Annuler le back navigateur uniquement si un overlay (galerie…) l’intercepte.
+      if (syncingHistory.current) {
+        syncingHistory.current = false;
+        return;
+      }
       if (interceptBack.current?.()) {
-        try {
-          window.history.pushState({ gemelo: true }, "");
-        } catch {
-          /* ignore */
-        }
+        stayInApp();
+        return;
+      }
+      if (drawerRef.current) {
+        setDrawer(false);
+        stayInApp();
         return;
       }
       if (placeRef.current.screen === "login" || isClerkAuthHash()) {
-        try {
-          window.history.pushState({ gemelo: true }, "");
-        } catch {
-          /* ignore */
-        }
+        stayInApp();
+        return;
+      }
+      if (!history.current.length) {
+        stayInApp();
         return;
       }
       applyBack();
@@ -293,6 +348,7 @@ export function AppV2() {
       settings: {},
       messages: {},
       ranking: {},
+      login: {},
       "review-published": { campaignId: "bed-hop", reportId: new URLSearchParams(window.location.search).get("avis") || null },
       discover: {},
       explore: {},
@@ -307,14 +363,21 @@ export function AppV2() {
   useEffect(() => {
     let startX = 0;
     let startY = 0;
+    let lastX = 0;
+    let lastT = 0;
+    let velocity = 0;
     let tracking = false;
-    let fired = false;
+    let dragging = false;
+    let committed = false;
+    let pageEl = null;
+    let dimEl = null;
+    const reduceMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     const startOpts = { capture: true, passive: true };
     const moveOpts = { capture: true, passive: false };
+
     function loc(event) {
       return event.changedTouches?.[0] || event.touches?.[0] || event;
     }
-    /** Bord gauche de l’écran (pas de la colonne .v2-page centrée). */
     function fromLeft(event) {
       return loc(event).clientX <= EDGE_PX;
     }
@@ -322,60 +385,194 @@ export function AppV2() {
       const node = event.target;
       return Boolean(node && node.closest && node.closest(swipeIgnore));
     }
-    function isBack(dx, dy) {
-      return dx >= SWIPE_DX && dx >= Math.abs(dy) * 1.15;
+    function resolvePage() {
+      return pageRef.current || document.querySelector(".v2-page");
+    }
+    function ensureDim() {
+      if (dimEl?.isConnected) return dimEl;
+      dimEl = document.createElement("div");
+      dimEl.className = "v2-back-dim";
+      dimEl.setAttribute("aria-hidden", "true");
+      document.body.prepend(dimEl);
+      return dimEl;
+    }
+    function clearDragStyles(el) {
+      if (!el) return;
+      el.classList.remove("is-swiping-back", "is-back-animating");
+      el.style.transform = "";
+      el.style.transition = "";
+    }
+    function setDrag(dx) {
+      if (!pageEl) return;
+      const x = Math.max(0, dx);
+      pageEl.style.transform = `translate3d(${x}px,0,0)`;
+      const dim = ensureDim();
+      const progress = Math.min(1, x / Math.max(window.innerWidth * COMMIT_RATIO, COMMIT_DX));
+      dim.style.opacity = String(0.18 + progress * 0.22);
     }
     function stopMove() {
       document.removeEventListener("touchmove", move, moveOpts);
       document.removeEventListener("pointermove", move, moveOpts);
     }
-    function fireBack() {
-      if (fired) return;
-      fired = true;
+    function shouldCommit(dx) {
+      const width = window.innerWidth || 1;
+      if (dx >= COMMIT_DX) return true;
+      if (dx >= width * COMMIT_RATIO) return true;
+      if (dx >= 48 && velocity >= COMMIT_VELOCITY) return true;
+      return false;
+    }
+    function resetGesture() {
       tracking = false;
+      dragging = false;
+      committed = false;
+      pageEl = null;
+    }
+    function finishCancel() {
+      if (!pageEl) {
+        resetGesture();
+        return;
+      }
+      const el = pageEl;
+      if (reduceMotion()) {
+        clearDragStyles(el);
+        if (dimEl) {
+          dimEl.style.opacity = "0";
+          dimEl.remove();
+          dimEl = null;
+        }
+        resetGesture();
+        return;
+      }
+      el.classList.add("is-back-animating");
+      el.style.transform = "translate3d(0,0,0)";
+      if (dimEl) {
+        dimEl.style.transition = "opacity 0.2s ease-out";
+        dimEl.style.opacity = "0";
+      }
+      let done = false;
+      const endAnim = () => {
+        if (done) return;
+        done = true;
+        el.removeEventListener("transitionend", endAnim);
+        clearDragStyles(el);
+        if (dimEl) {
+          dimEl.style.transition = "";
+          dimEl.remove();
+          dimEl = null;
+        }
+        resetGesture();
+      };
+      el.addEventListener("transitionend", endAnim);
+      window.setTimeout(endAnim, 280);
+    }
+    function finishCommit() {
+      if (committed) return;
+      committed = true;
       stopMove();
-      backRef.current();
+      const el = pageEl;
+      const runBack = () => {
+        clearDragStyles(el);
+        if (dimEl) {
+          dimEl.remove();
+          dimEl = null;
+        }
+        resetGesture();
+        backRef.current();
+      };
+      if (!el || reduceMotion()) {
+        runBack();
+        return;
+      }
+      const width = window.innerWidth;
+      el.classList.add("is-back-animating");
+      el.style.transform = `translate3d(${width}px,0,0)`;
+      if (dimEl) {
+        dimEl.style.transition = "opacity 0.22s ease-out";
+        dimEl.style.opacity = "0";
+      }
+      let done = false;
+      const endAnim = () => {
+        if (done) return;
+        done = true;
+        el.removeEventListener("transitionend", endAnim);
+        runBack();
+      };
+      el.addEventListener("transitionend", endAnim);
+      window.setTimeout(endAnim, 300);
     }
     function begin(event) {
-      if (tracking) return;
+      if (tracking || committed) return;
       if (event.pointerType === "mouse" && event.button !== 0) return;
       if (!fromLeft(event) || blocked(event)) return;
+      if (!canBackRef.current()) return;
       const point = loc(event);
       startX = point.clientX;
       startY = point.clientY;
+      lastX = point.clientX;
+      lastT = performance.now();
+      velocity = 0;
       tracking = true;
-      fired = false;
+      dragging = false;
+      committed = false;
+      pageEl = resolvePage();
       document.addEventListener("touchmove", move, moveOpts);
       document.addEventListener("pointermove", move, moveOpts);
     }
     function move(event) {
-      if (!tracking || fired) return;
+      if (!tracking || committed) return;
       const point = loc(event);
       const dx = point.clientX - startX;
       const dy = point.clientY - startY;
-      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 12) {
-        tracking = false;
-        stopMove();
-        return;
+      const now = performance.now();
+      const dt = Math.max(1, now - lastT);
+      velocity = (point.clientX - lastX) / dt;
+      lastX = point.clientX;
+      lastT = now;
+
+      if (!dragging) {
+        if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
+          tracking = false;
+          stopMove();
+          return;
+        }
+        if (dx > 10 && Math.abs(dx) > Math.abs(dy) * 1.1) {
+          dragging = true;
+          if (pageEl) pageEl.classList.add("is-swiping-back");
+          ensureDim();
+        } else {
+          return;
+        }
       }
-      if (dx > 8 && Math.abs(dx) > Math.abs(dy) && event.cancelable) event.preventDefault();
-      if (isBack(dx, dy)) fireBack();
+      if (event.cancelable) event.preventDefault();
+      setDrag(dx);
     }
     function end(event) {
       stopMove();
-      if (!tracking || fired) {
+      if (!tracking || committed) {
         tracking = false;
         return;
       }
-      tracking = false;
+      if (!dragging) {
+        tracking = false;
+        return;
+      }
       const point = loc(event);
-      if (isBack(point.clientX - startX, point.clientY - startY)) fireBack();
+      const dx = Math.max(0, point.clientX - startX);
+      if (shouldCommit(dx) && canBackRef.current()) finishCommit();
+      else finishCancel();
     }
     function cancel() {
-      tracking = false;
-      fired = false;
       stopMove();
+      if (committed) return;
+      if (dragging) finishCancel();
+      else {
+        tracking = false;
+        dragging = false;
+        clearDragStyles(pageEl);
+        pageEl = null;
+      }
     }
+
     document.addEventListener("touchstart", begin, startOpts);
     document.addEventListener("touchend", end, startOpts);
     document.addEventListener("touchcancel", cancel, startOpts);
@@ -390,6 +587,8 @@ export function AppV2() {
       document.removeEventListener("pointerdown", begin, startOpts);
       document.removeEventListener("pointerup", end, startOpts);
       document.removeEventListener("pointercancel", cancel, startOpts);
+      if (dimEl) dimEl.remove();
+      clearDragStyles(pageEl);
     };
   }, []);
 
@@ -410,6 +609,16 @@ export function AppV2() {
     if (place.screen === "explore") return <ExploreScreen {...props} />;
     if (place.screen === "messages") return <MessagesScreen {...props} />;
     if (place.screen === "ranking") return <RankingScreen {...props} />;
+    if (place.screen === "tester-profile") {
+      return (
+        <TesterPublicScreen
+          {...props}
+          authorId={place.authorId}
+          authorName={place.authorName}
+          projectId={place.projectId}
+        />
+      );
+    }
     if (place.screen === "profile") return <ProfileScreen {...props} />;
     if (place.screen === "settings") return <SettingsScreen {...props} />;
     if (place.screen === "project-edit") return <ProjectEditScreen {...props} />;

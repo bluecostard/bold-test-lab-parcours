@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { SignIn, SignUp, useAuth, useClerk, useSignIn, useUser } from "@clerk/react";
+import { SignIn, SignUp, useAuth, useSignIn, useUser } from "@clerk/react";
 import { slotAvailable } from "../../lib/availability.js";
 import { apply, campaignDeadlineLabel, campaignPeriodLabel, campaignRemainingMsFor, campaignTimerParts, campaignTimerProgress, canManageBooking, demoOfferDays, formattedDate, isCampaignSlotActive, isIsoDate, localToday } from "./booking.js";
 import { useCampaignCatalog } from "./catalog.js";
@@ -10,6 +10,7 @@ import { readQuestion, answerQuestion } from "./questionsApi.js";
 import { forgetFile, isHostedMedia, rememberFile, uploadMedia } from "./mediaApi.js";
 import { flagReview, getReview, likeReview, listReviews } from "./reviewsApi.js";
 import { projectsInTop10, useRanking } from "./rankingApi.js";
+import { fetchTesterProfile } from "./testerApi.js";
 import { blockAuthor, hasPaidCampaign, isAuthorBlocked, readProfile, readPublicPseudo, readV2State, savePublicPseudo, setLocalUser, unblockAuthor, updateLocalProfile, updateV2State, visibleReviews } from "./state.js";
 import { ShellWithNav } from "./chrome.jsx";
 import {
@@ -1213,19 +1214,34 @@ function RankingCrown() {
   );
 }
 
-function RankingRow({ person, place, className = "" }) {
+function openTesterProfile(navigate, person) {
+  navigate("tester-profile", {
+    authorId: person.authorId || person.id || "",
+    authorName: person.name || "",
+    projectId: person.projectId || "",
+  });
+}
+
+function RankingRow({ person, place, className = "", navigate }) {
   return (
     <li className={className}>
       <span className="v2-position">{place}</span>
-      <img className="v2-ranking-photo" src={person.photo || "/icon-app.png"} alt={person.name} width="76" height="76" />
-      <span>
-        <strong>
-          {person.name}
-          {place === 1 ? <RankingCrown /> : null}
-          {person.live === false ? <em className="v2-seed-mark">Exemple</em> : null}
-        </strong>
-        <small>{person.phrase}</small>
-      </span>
+      <button
+        type="button"
+        className="v2-ranking-profile"
+        onClick={() => openTesterProfile(navigate, person)}
+        aria-label={`Voir le profil de ${person.name}`}
+      >
+        <img className="v2-ranking-photo" src={person.photo || "/icon-app.png"} alt="" width="76" height="76" />
+        <span>
+          <strong>
+            {person.name}
+            {place === 1 ? <RankingCrown /> : null}
+            {person.live === false ? <em className="v2-seed-mark">Exemple</em> : null}
+          </strong>
+          <small>{person.phrase}</small>
+        </span>
+      </button>
       <b>{person.points} pts</b>
     </li>
   );
@@ -1256,15 +1272,15 @@ function RankingBody({ navigate, pageRef, openDrawer, getToken }) {
     <ShellWithNav active="ranking" navigate={navigate} pageRef={pageRef} openDrawer={openDrawer}>
       <main className="v2-stack">
         <div><h1>Classement <span className="v2-accent">des testeurs</span></h1><p className="v2-muted">30 derniers jours</p></div>
-        <p className="v2-description">Les avis précis et appréciés font gagner des points. Un like sur votre propre avis ne compte pas. Les lignes marquées « Exemple » complètent le top 10 tant qu’il n’y a pas assez de testeurs.</p>
+        <p className="v2-description">Les avis précis et appréciés font gagner des points. Un like sur votre propre avis ne compte pas. Les lignes marquées « Exemple » complètent le classement tant qu’il n’y a pas assez de testeurs.</p>
         <ol className="v2-ranking-podium">
           {podium.map((person) => (
-            <RankingRow key={person.id || person.name} person={person} place={person.place} className={`is-podium is-${person.place}`} />
+            <RankingRow key={person.id || person.name} person={person} place={person.place} className={`is-podium is-${person.place}`} navigate={navigate} />
           ))}
         </ol>
         <ol className="v2-ranking-list" start={4}>
           {rest.map((person) => (
-            <RankingRow key={person.id || person.name} person={person} place={person.place} className={person.place <= 5 ? "is-top5" : ""} />
+            <RankingRow key={person.id || person.name} person={person} place={person.place} className={person.place <= 5 ? "is-top5" : ""} navigate={navigate} />
           ))}
         </ol>
         <Card className="v2-user-rank">
@@ -1278,6 +1294,94 @@ function RankingBody({ navigate, pageRef, openDrawer, getToken }) {
         <p className="v2-info">Les projets des membres du top 10 sont visibles dans la Communauté tant qu’ils y restent.</p>
       </main>
     </ShellWithNav>
+  );
+}
+
+export function TesterPublicScreen({ authorId, authorName, projectId, navigate, back, pageRef, openDrawer }) {
+  const catalog = useCampaignCatalog();
+  const [profile, setProfile] = useState(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    setProfile(undefined);
+    fetchTesterProfile({ authorId, name: authorName, projectId })
+      .then((data) => { if (!cancelled) setProfile(data || null); })
+      .catch(() => { if (!cancelled) setProfile(null); });
+    return () => { cancelled = true; };
+  }, [authorId, authorName, projectId]);
+
+  const tester = profile?.tester;
+  const reviews = profile?.reviews || [];
+  const resolvedProjectId = tester?.projectId || projectId || "";
+  const projectLabel = tester?.projectName || "";
+
+  function openReview(review) {
+    if (!review?.campaignId) return;
+    const inCatalog = catalog.some((item) => item.id === review.campaignId) || review.campaignId === "bed-hop";
+    if (inCatalog && review.id) {
+      navigate("review-published", { campaignId: review.campaignId, reportId: review.id });
+      return;
+    }
+    navigate("browse", { campaignId: review.campaignId });
+  }
+
+  return (
+    <PageShell pageRef={pageRef}>
+      <FlowHeader navigate={navigate} openDrawer={openDrawer} />
+      <main className="v2-stack">
+        <BackButton onClick={back}>Retour au classement</BackButton>
+        {profile === undefined ? (
+          <p className="v2-muted">Chargement du profil…</p>
+        ) : !tester ? (
+          <p className="v2-muted">Profil introuvable.</p>
+        ) : (
+          <>
+            <header className="v2-tester-public-head">
+              <img className="v2-ranking-photo v2-tester-public-photo" src={tester.photo || "/icon-app.png"} alt={tester.name} width="88" height="88" />
+              <div>
+                <h1>{tester.name}</h1>
+                <p className="v2-muted">
+                  {tester.place ? `${tester.place}e · ` : null}
+                  {tester.points} pts
+                  {tester.live === false ? " · Exemple" : null}
+                </p>
+                {tester.phrase ? <p className="v2-description">{tester.phrase}</p> : null}
+                {resolvedProjectId && projectLabel ? (
+                  <button
+                    type="button"
+                    className="v2-inline-link v2-tester-project-link"
+                    onClick={() => navigate("browse", { campaignId: resolvedProjectId })}
+                  >
+                    Projet · {projectLabel}
+                  </button>
+                ) : null}
+              </div>
+            </header>
+            <section>
+              <SectionTitle icon="●" title="5 derniers avis" description="Sur les applis testées. Touchez un avis pour l’ouvrir." />
+              {reviews.length ? (
+                <ul className="v2-comments v2-comments--open">
+                  {reviews.map((review) => (
+                    <li key={review.id}>
+                      <button type="button" onClick={() => openReview(review)}>
+                        <span className="v2-tester-review-app" aria-hidden="true">◎</span>
+                        <p>
+                          <strong>{review.campaignName || "Appli testée"}</strong>
+                          {review.title ? <small className="v2-tester-review-title">{review.title}</small> : null}
+                          <q>{review.text}</q>
+                        </p>
+                        <span aria-label={`${review.likes || 0} mentions J’aime`}>♥ {review.likes || 0}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="v2-muted">Aucun avis publié pour le moment.</p>
+              )}
+            </section>
+          </>
+        )}
+      </main>
+    </PageShell>
   );
 }
 
@@ -1492,7 +1596,7 @@ function testerSinceLabel(createdAt) {
   return `Testeur depuis ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
-function ProfileBody({ navigate, pageRef, openDrawer, signedIn, name, avatar, since, onAvatar, onSignOut, onSavePseudo, getToken }) {
+function ProfileBody({ navigate, pageRef, openDrawer, signedIn, name, avatar, since, onAvatar, onSavePseudo, getToken }) {
   const [showReviews, setShowReviews] = useState(false);
   const [pseudo, setPseudo] = useState(name || "");
   const [pseudoError, setPseudoError] = useState("");
@@ -1551,7 +1655,6 @@ function ProfileBody({ navigate, pageRef, openDrawer, signedIn, name, avatar, si
                 ) : name ? (
                   <button type="button" className="v2-text-button" onClick={() => { setPseudo(name); setEditingPseudo(true); }}>Modifier le pseudo</button>
                 ) : null}
-                <button type="button" className="v2-text-button" onClick={onSignOut}>Se déconnecter</button>
               </>
             ) : (
               <button type="button" className="v2-text-button" onClick={() => navigate("login")}>Se connecter</button>
@@ -1638,7 +1741,6 @@ function ProfileBody({ navigate, pageRef, openDrawer, signedIn, name, avatar, si
 
 function ClerkProfile(props) {
   const { user, isSignedIn, isLoaded } = useUser();
-  const { signOut } = useClerk();
   const { getToken } = useAuth();
   if (!isLoaded) {
     return (
@@ -1660,14 +1762,6 @@ function ClerkProfile(props) {
       name={readPublicPseudo(user)}
       avatar={user?.imageUrl || ""}
       since={testerSinceLabel(user?.createdAt)}
-      onSignOut={async () => {
-        setLocalUser(null);
-        try {
-          await signOut({ redirectUrl: "/" });
-        } catch {
-          props.navigate("discover");
-        }
-      }}
       onAvatar={avatarChange}
       onSavePseudo={(value) => savePublicPseudo(user, value)}
       getToken={getToken}
@@ -1688,11 +1782,7 @@ function LocalProfile(props) {
     };
     reader.readAsDataURL(file);
   }
-  function signOut() {
-    setLocalUser(null);
-    props.navigate("discover");
-  }
-  return <ProfileBody {...props} signedIn={Boolean(profile.user)} name={readPublicPseudo()} avatar={profile.avatar} since="Testeur" onSignOut={signOut} onAvatar={avatarChange} onSavePseudo={(value) => savePublicPseudo(null, value)} />;
+  return <ProfileBody {...props} signedIn={Boolean(profile.user)} name={readPublicPseudo()} avatar={profile.avatar} since="Testeur" onAvatar={avatarChange} onSavePseudo={(value) => savePublicPseudo(null, value)} />;
 }
 
 export function ProfileScreen(props) {

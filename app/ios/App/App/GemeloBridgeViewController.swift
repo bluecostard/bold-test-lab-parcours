@@ -10,7 +10,8 @@ class GemeloBridgeViewController: CAPBridgeViewController {
 
   override open func viewDidAppear(_ animated: Bool) {
     super.viewDidAppear(animated)
-    // Glissement depuis le bord gauche (geste système iOS) → history.back → popstate SPA.
-    webView?.allowsBackForwardNavigationGestures = true
+    // Désactivé : le geste natif WKWebView et le swipe SPA se doublaient (souvent → Accueil).
+    // Le retour edge est géré en JS (suivi du doigt + pile Gemelo) dans AppV2.
+    webView?.allowsBackForwardNavigationGestures = false
   }
 }

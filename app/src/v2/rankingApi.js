@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { projectNameFor } from "../../lib/projectNames.js";
 import { ranking as seedRanking, testerRail } from "./data.js";
 
 async function readJson(response) {
@@ -22,18 +23,22 @@ function seedRows() {
     Élise: "deezer",
     Maxime: "signal",
   };
-  return seedRanking.map((row, index) => ({
-    id: `seed-${row.name}`,
-    authorId: "",
-    name: row.name,
-    photo: row.photo,
-    phrase: row.phrase,
-    points: row.points,
-    tested: row.tested,
-    projectId: projectByName[row.name] || "",
-    live: false,
-    place: index + 1,
-  }));
+  return seedRanking.map((row, index) => {
+    const projectId = projectByName[row.name] || "";
+    return {
+      id: `seed-${row.name}`,
+      authorId: "",
+      name: row.name,
+      photo: row.photo,
+      phrase: row.phrase,
+      points: row.points,
+      tested: row.tested,
+      projectId,
+      projectName: projectNameFor(projectId),
+      live: false,
+      place: index + 1,
+    };
+  });
 }
 
 export async function fetchRanking(getToken) {
@@ -49,7 +54,10 @@ export async function fetchRanking(getToken) {
     return { ranking, me: null, windowDays: 30 };
   }
   return {
-    ranking: data.ranking,
+    ranking: data.ranking.map((row) => ({
+      ...row,
+      projectName: row.projectName || projectNameFor(row.projectId),
+    })),
     me: data.me || null,
     windowDays: data.windowDays || 30,
   };
