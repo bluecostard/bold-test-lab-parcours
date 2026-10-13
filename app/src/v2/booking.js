@@ -1,3 +1,4 @@
+import { campaignRemainingMs as serverRemainingMs, slotHours, slotStartMs } from "../../lib/campaignTime.js";
 import { readAccount, writeAccount } from "../screens/account.js";
 
 const MANAGE_MS = 72 * 60 * 60 * 1000;
@@ -29,13 +30,7 @@ export function campaignRemainingMs(now = Date.now()) {
 }
 
 export function campaignRemainingMsFor(campaign, now = Date.now()) {
-  if (campaign?.offerDate) {
-    const start = slotStart(campaign.offerDate, campaign.offerRange, campaign.offerLabel);
-    if (start) {
-      const end = start.getTime() + slotDurationHours(campaign) * 60 * 60 * 1000;
-      return Math.max(0, end - now);
-    }
-  }
+  if (campaign?.offerDate) return serverRemainingMs(campaign, now);
   return campaignRemainingMs(now);
 }
 
@@ -56,7 +51,7 @@ export function campaignPeriodLabel(campaign) {
 }
 
 export function campaignSlotMs(campaign) {
-  if (campaign?.offerDate) return slotDurationHours(campaign) * 60 * 60 * 1000;
+  if (campaign?.offerDate) return slotHours(campaign) * 60 * 60 * 1000;
   return CAMPAIGN_CYCLE_MS;
 }
 
@@ -121,34 +116,31 @@ export function slotStart(offerDate, offerRange, offerLabel) {
   return Number.isNaN(start.getTime()) ? null : start;
 }
 
+/** Aligné sur lib/campaignTime (serveur) — évite décalages client/API. */
 export function slotDurationHours(account) {
-  if (account?.offerLabel === "24 heures" || Number(account?.offerPrice) === 149) return 24;
-  if (String(account?.offerRange || "").includes("24")) return 24;
-  return 12;
+  return slotHours(account);
 }
 
 export function slotEnded(account, now = Date.now()) {
-  const start = slotStart(account?.offerDate, account?.offerRange, account?.offerLabel);
-  if (!start) return false;
-  return now >= start.getTime() + slotDurationHours(account) * 60 * 60 * 1000;
+  const startMs = slotStartMs(account);
+  if (startMs == null) return false;
+  return now >= startMs + slotHours(account) * 60 * 60 * 1000;
 }
 
 /** Créneau payé en cours (après le début, avant la fin). Sans offerDate : pas « en cours ». */
 export function isCampaignSlotActive(campaign, now = Date.now()) {
-  if (!campaign?.offerDate) return false;
-  const start = slotStart(campaign.offerDate, campaign.offerRange, campaign.offerLabel);
-  if (!start) return false;
-  if (now < start.getTime()) return false;
-  return campaignRemainingMsFor(campaign, now) > 0;
+  const startMs = slotStartMs(campaign);
+  if (startMs == null) return false;
+  if (now < startMs) return false;
+  return serverRemainingMs(campaign, now) > 0;
 }
 
 /** Statut affichable : scheduled | live | done. */
 export function campaignResultStatus(campaign, now = Date.now()) {
-  if (!campaign?.offerDate) return "done";
-  const start = slotStart(campaign.offerDate, campaign.offerRange, campaign.offerLabel);
-  if (!start) return "done";
-  if (now < start.getTime()) return "scheduled";
-  if (campaignRemainingMsFor(campaign, now) > 0) return "live";
+  const startMs = slotStartMs(campaign);
+  if (startMs == null) return "done";
+  if (now < startMs) return "scheduled";
+  if (serverRemainingMs(campaign, now) > 0) return "live";
   return "done";
 }
 

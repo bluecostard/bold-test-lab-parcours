@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAuth, useUser } from "@clerk/react";
 import { browseProjects } from "./data.js";
-import { useCampaignCatalog } from "./catalog.js";
+import { prefetchCampaignCatalog, useCampaignCatalog } from "./catalog.js";
 import { syncAccountFromServer } from "./accountSync.js";
 import { startNativePush } from "./pushNative.js";
+import { prefetchRanking } from "./rankingApi.js";
 import { setStorageScope } from "./state.js";
 import { SideDrawer } from "./chrome.jsx";
 import { Button, PageShell } from "./primitives.jsx";
@@ -98,22 +99,15 @@ function ClerkStorageScope({ children }) {
   useEffect(() => {
     if (!isLoaded) return undefined;
     setStorageScope(scope);
-    let cancelled = false;
-    setReady(false);
-    (async () => {
-      if (user?.id && getToken) {
-        try {
-          await syncAccountFromServer(getToken);
-        } catch {
-          /* local vide si serveur indisponible — l’UI reste utilisable */
-        }
-        startNativePush(getToken).catch(() => {});
-      }
-      if (!cancelled) setReady(true);
-    })();
-    return () => {
-      cancelled = true;
-    };
+    // Prefetch pendant le splash — évite une rafale d’API à l’arrivée sur l’accueil.
+    prefetchCampaignCatalog();
+    prefetchRanking(user?.id ? getToken : null);
+    // UI dès Clerk prêt ; sync compte / push en arrière-plan (pas de waterfall splash).
+    setReady(true);
+    if (user?.id && getToken) {
+      syncAccountFromServer(getToken).catch(() => {});
+      startNativePush(getToken).catch(() => {});
+    }
   }, [getToken, isLoaded, scope, user?.id]);
 
   useEffect(() => {

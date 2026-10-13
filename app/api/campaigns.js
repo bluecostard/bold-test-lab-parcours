@@ -1,6 +1,7 @@
 import { readClerkUser } from "../lib/clerkAuth.js";
 import { listCampaigns, readCampaign, saveCampaign } from "../lib/campaignStore.js";
 import { draftCampaign, mapInstruction, mapSocials } from "../lib/campaignDraft.js";
+import { campaignRemainingMs, slotStartMs } from "../lib/campaignTime.js";
 import { readBooking } from "../lib/bookingStore.js";
 import { runMailJobs } from "../lib/mailJobs.js";
 
@@ -8,7 +9,16 @@ function clean(value, limit = 240) {
   return typeof value === "string" ? value.trim().slice(0, limit) : "";
 }
 
+function isSlotActive(campaign, now = Date.now()) {
+  const start = slotStartMs(campaign);
+  if (start == null) return false;
+  if (now < start) return false;
+  return campaignRemainingMs(campaign, now) > 0;
+}
+
 function publicCampaign(campaign) {
+  const now = Date.now();
+  const start = slotStartMs(campaign);
   return {
     id: campaign.id,
     name: campaign.name,
@@ -34,6 +44,8 @@ function publicCampaign(campaign) {
     appScreens: Array.isArray(campaign.appScreens) ? campaign.appScreens.slice(0, 8) : ["Accueil", "Parcours", "Confirmation"],
     kind: campaign.kind || "app",
     live: campaign.live !== false,
+    slotActive: isSlotActive(campaign, now),
+    slotScheduled: start != null && now < start,
     offerLabel: campaign.offerLabel || "",
     offerRange: campaign.offerRange || "",
     offerPrice: campaign.offerPrice || 0,

@@ -1093,7 +1093,7 @@ function ResultsAuthed(props) {
 
 function ResultsBody({ navigate, pageRef, getToken }) {
   const [account, setAccount] = useState(readAccount);
-  const [ready, setReady] = useState(!getToken);
+  const [ready, setReady] = useState(true);
   const [tab, setTab] = useState("campaigns");
   const [filter, setFilter] = useState("all");
   const [reviewsOpen, setReviewsOpen] = useState(false);
@@ -1101,19 +1101,13 @@ function ResultsBody({ navigate, pageRef, getToken }) {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      if (getToken) {
-        try {
-          await syncAccountFromServer(getToken);
-        } catch {
-          /* local inchangé */
-        }
-      }
-      if (!cancelled) {
-        setAccount(readAccount());
-        setReady(true);
-      }
-    })();
+    setAccount(readAccount());
+    setReady(true);
+    if (!getToken) return undefined;
+    // Affiche le compte local tout de suite ; rafraîchit en arrière-plan.
+    syncAccountFromServer(getToken)
+      .then(() => { if (!cancelled) setAccount(readAccount()); })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, [getToken]);
 

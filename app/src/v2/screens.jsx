@@ -343,10 +343,11 @@ function FeaturedCampaignCard({ campaign, navigate }) {
 export function DiscoverScreen({ navigate, pageRef, openDrawer }) {
   const catalog = useCampaignCatalog();
   const seedIds = new Set(campaigns.map((item) => item.id));
-  const apiLive = catalog.filter((item) => !seedIds.has(item.id) && item.live !== false);
-  // Accueil : seed Bed Hop seulement si aucune campagne API live ; sinon créneaux en cours uniquement.
-  const homePool = apiLive.length
-    ? apiLive.filter((item) => isCampaignSlotActive(item))
+  const apiCampaigns = catalog.filter((item) => !seedIds.has(item.id) && item.live !== false);
+  // Accueil : créneaux réellement actifs uniquement. Une campagne API expirée (live:true) ne masque plus le seed.
+  const activeApi = apiCampaigns.filter((item) => item.slotActive === true || (item.slotActive == null && isCampaignSlotActive(item)));
+  const homePool = activeApi.length
+    ? activeApi
     : catalog.filter((item) => seedIds.has(item.id) && item.live !== false);
   const featured = homePool[0] || null;
   const extraLive = homePool.slice(1);
