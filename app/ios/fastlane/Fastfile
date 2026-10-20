@@ -201,7 +201,7 @@ platform :ios do
       metadata_path: File.expand_path("metadata", __dir__),
       screenshots_path: File.expand_path("screenshots", __dir__),
       app_rating_config_path: File.expand_path("rating_config.json", __dir__),
-      price_tier: 0,
+      # price_tier casse l'API ASC actuelle (availableInNewTerritories). Prix gratuit a regler une fois dans ASC.
       overwrite_screenshots: true,
       submit_for_review: true,
       automatic_release: false,
