@@ -8,6 +8,9 @@
     "allowNavigation": [
       "gemelo.online",
       "www.gemelo.online",
+      "clerk.gemelo.online",
+      "accounts.gemelo.online",
+      "*.gemelo.online",
       "*.clerk.com",
       "*.clerk.accounts.dev",
       "checkout.stripe.com",
@@ -22,6 +25,9 @@
     "scheme": "App"
   },
   "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    },
     "SplashScreen": {
       "launchShowDuration": 0,
       "launchAutoHide": false,

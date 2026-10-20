@@ -11,11 +11,16 @@ if (new URLSearchParams(window.location.search).get("ecran") === "besoin") {
 }
 
 const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-const RootApp = new URLSearchParams(window.location.search).get("v1") === "1" ? App : AppV2;
+const search = new URLSearchParams(window.location.search);
+const RootApp = search.get("v1") === "1" ? App : AppV2;
+const isNativeApp = search.get("app") === "1";
+const loginPath = isNativeApp ? "/?app=1&ecran=login" : "/?ecran=login";
 const clerkOrigins = [...new Set([
   window.location.origin,
   "https://gemelo.online",
   "https://www.gemelo.online",
+  "https://accounts.gemelo.online",
+  "https://clerk.gemelo.online",
 ])];
 
 if ("serviceWorker" in navigator) {
@@ -32,7 +37,11 @@ if (root) {
         <ClerkProvider
           publishableKey={clerkKey}
           localization={frFR}
-          afterSignOutUrl="/?ecran=login"
+          signInUrl={loginPath}
+          signUpUrl={loginPath}
+          signInFallbackRedirectUrl={loginPath}
+          signUpFallbackRedirectUrl={loginPath}
+          afterSignOutUrl={loginPath}
           allowedRedirectOrigins={clerkOrigins}
         >
           <RootApp />
