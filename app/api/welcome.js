@@ -1,6 +1,6 @@
 import { readClerkUser } from "../lib/clerkAuth.js";
 import { welcomeEmail } from "../lib/emails.js";
-import { sendMail } from "../lib/mail.js";
+import { notifyAdmin, sendMail } from "../lib/mail.js";
 import { mailToken, readMailPrefs, markWelcomeSent } from "../lib/mailPrefs.js";
 import { rateLimited, rateLimitReply } from "../lib/rateLimit.js";
 
@@ -25,6 +25,27 @@ export default async function handler(req, res) {
     const mail = welcomeEmail({ name, token: mailToken(user.id) });
     await sendMail({ to: email, subject: mail.subject, text: mail.text, html: mail.html });
     await markWelcomeSent(user.id, email, name);
+    if (!prefs.subscribers[user.id]?.signupAlertSent) {
+      notifyAdmin({
+        subject: `Nouvelle inscription Gemelo — ${email}`,
+        text: [
+          "Nouvelle inscription Gemelo",
+          "",
+          `E-mail : ${email}`,
+          `Nom : ${name || "—"}`,
+          `Clerk id : ${user.id}`,
+          `Date : ${new Date().toISOString()}`,
+        ].join("\n"),
+        replyTo: email,
+      })
+        .then(async () => {
+          const { upsertSubscriber } = await import("../lib/mailPrefs.js");
+          await upsertSubscriber(user.id, { email, name, signupAlertSent: new Date().toISOString() });
+        })
+        .catch((error) => {
+          console.log("welcome-admin", String(error?.message || error).slice(0, 180));
+        });
+    }
     return res.status(200).json({ ok: true, sent: true });
   } catch (error) {
     console.log("welcome-mail", String(error?.message || error).slice(0, 180));
