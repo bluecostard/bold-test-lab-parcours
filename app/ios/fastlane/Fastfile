@@ -182,7 +182,8 @@ platform :ios do
       force: true,
       reject_if_possible: false,
       run_precheck_before_submit: true,
-      precheck_include_in_app_purchases: true,
+      # Precheck IAP exige un login Apple ID ; la cle API ne le permet pas encore.
+      precheck_include_in_app_purchases: false,
       submission_information: {
         add_id_info_uses_idfa: false,
         add_id_info_serves_ads: false,
