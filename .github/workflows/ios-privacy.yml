@@ -1,0 +1,32 @@
+name: iOS App Privacy Labels
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-privacy
+  cancel-in-progress: false
+
+jobs:
+  privacy:
+    name: Publier Privacy Labels
+    runs-on: macos-26
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+          working-directory: app/ios
+
+      - name: Publier les Nutrition Labels
+        working-directory: app/ios
+        run: bundle exec fastlane ios privacy
