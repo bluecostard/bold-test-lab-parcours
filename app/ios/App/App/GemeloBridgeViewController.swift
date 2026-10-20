@@ -1,11 +1,11 @@
 import UIKit
 import Capacitor
 
-/// Enregistre GemeloIap : `cap sync` n’inclut que les plugins npm dans packageClassList.
-/// NSClassFromString peut aussi échouer selon le module Swift — on force l’instance ici.
+/// Enregistre les plugins locaux : `cap sync` n’inclut que les plugins npm dans packageClassList.
 class GemeloBridgeViewController: CAPBridgeViewController {
   override open func capacitorDidLoad() {
     bridge?.registerPluginInstance(GemeloIapPlugin())
+    bridge?.registerPluginInstance(GemeloVideoPlugin())
     disableNativeBackSwipe()
   }
 

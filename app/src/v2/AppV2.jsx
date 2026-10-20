@@ -99,15 +99,29 @@ function ClerkStorageScope({ children }) {
   useEffect(() => {
     if (!isLoaded) return undefined;
     setStorageScope(scope);
-    // Prefetch pendant le splash — évite une rafale d’API à l’arrivée sur l’accueil.
-    prefetchCampaignCatalog();
-    prefetchRanking(user?.id ? getToken : null);
-    // UI dès Clerk prêt ; sync compte / push en arrière-plan (pas de waterfall splash).
+    // UI dès Clerk prêt ; réseau (catalogue / classement) en idle pour un 1er écran plus rapide.
     setReady(true);
+    const deferNetwork = () => {
+      prefetchCampaignCatalog();
+      prefetchRanking(user?.id ? getToken : null);
+    };
+    let idleId;
+    let timer;
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      idleId = window.requestIdleCallback(deferNetwork, { timeout: 1800 });
+    } else {
+      timer = setTimeout(deferNetwork, 250);
+    }
     if (user?.id && getToken) {
       syncAccountFromServer(getToken).catch(() => {});
       startNativePush(getToken).catch(() => {});
     }
+    return () => {
+      if (idleId != null && typeof window !== "undefined" && "cancelIdleCallback" in window) {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timer) clearTimeout(timer);
+    };
   }, [getToken, isLoaded, scope, user?.id]);
 
   useEffect(() => {
@@ -152,7 +166,7 @@ export function AppV2() {
   const [ageOk, setAgeOk] = useState(hasConfirmedAge);
   const [place, setPlace] = useState(() => {
     const requested = new URLSearchParams(window.location.search).get("ecran");
-    if (requested === "profile" || requested === "confirmation" || requested === "offer" || requested === "payment" || requested === "besoin" || requested === "login") {
+    if (requested === "profile" || requested === "confirmation" || requested === "offer" || requested === "payment" || requested === "besoin" || requested === "login" || requested === "entrepreneur") {
       return { ...homePlace, screen: requested };
     }
     if (isClerkAuthHash()) return { ...homePlace, screen: "login" };
@@ -176,7 +190,13 @@ export function AppV2() {
   drawerRef.current = drawer;
 
   useEffect(() => {
-    if (!clerkKey) dismissBootSplash();
+    if (!clerkKey) {
+      dismissBootSplash();
+      return undefined;
+    }
+    // Si Clerk reste bloqué (ex. pk_live sur localhost), ne pas laisser le splash infini.
+    const timer = setTimeout(() => dismissBootSplash(), 4000);
+    return () => clearTimeout(timer);
   }, []);
 
   function show(next, scroll = topScroll) {
@@ -344,6 +364,7 @@ export function AppV2() {
       "report-check": { campaignId: "bed-hop" },
       profile: {},
       "project-edit": {},
+      entrepreneur: {},
       confirmation: {},
       payment: {},
       besoin: {},

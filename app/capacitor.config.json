@@ -47,6 +47,7 @@
     "PushNotificationsPlugin",
     "SplashScreenPlugin",
     "StatusBarPlugin",
-    "GemeloIapPlugin"
+    "GemeloIapPlugin",
+    "GemeloVideoPlugin"
   ]
 }

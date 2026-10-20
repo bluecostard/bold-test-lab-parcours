@@ -18,6 +18,21 @@ import {
   snapshotFiles,
   uploadMedia,
 } from "./mediaApi.js";
+import {
+  PITCH_DURATION_CHIPS,
+  PITCH_MAX_SECONDS,
+  canExportPitchClip,
+  clampClipWindow,
+  defaultClipLength,
+  exportPitchClip,
+  formatFileMegabytes,
+  formatVideoClock,
+  pitchDurationMessage,
+  pitchNeedsCompress,
+  pitchNeedsTrim,
+  pitchSizeMessage,
+  pitchTooHeavy,
+} from "./pitchVideo.js";
 import { mapSocials, SOCIAL_NETWORKS } from "../../lib/campaignDraft.js";
 import { syncAccountFromServer } from "./accountSync.js";
 import { publishCampaign } from "./campaignsApi.js";
@@ -218,6 +233,11 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken, mode = "campa
   const [imageError, setImageError] = useState("");
   const [pitchError, setPitchError] = useState("");
   const [pitchBusy, setPitchBusy] = useState(false);
+  const [pitchBusyLabel, setPitchBusyLabel] = useState("");
+  /** Brouillon local avant envoi : trim / compression. */
+  const [pitchDraft, setPitchDraft] = useState(null);
+  const [clipLength, setClipLength] = useState(45);
+  const [clipStart, setClipStart] = useState(0);
   const [busy, setBusy] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
   const logoInput = useRef(null);
@@ -316,12 +336,77 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken, mode = "campa
     }
   }
 
+  function revokePitchDraft() {
+    if (pitchDraft?.previewUrl) {
+      forgetBlobFile(pitchDraft.previewUrl);
+      URL.revokeObjectURL(pitchDraft.previewUrl);
+    }
+    setPitchDraft(null);
+  }
+
   function clearFounderPitch() {
     if (founderPitch?.src && !isHostedMedia(founderPitch.src)) {
       forgetBlobFile(founderPitch.src);
       URL.revokeObjectURL(founderPitch.src);
     }
     setFounderPitch(null);
+    revokePitchDraft();
+    setPitchError("");
+    setPitchBusyLabel("");
+  }
+
+  function openPitchDraft(file, seconds) {
+    const length = defaultClipLength(seconds);
+    const window = clampClipWindow(seconds, 0, length);
+    const local = previewUrl(file);
+    rememberBlobFile(local, file);
+    if (founderPitch?.src && !isHostedMedia(founderPitch.src)) {
+      forgetBlobFile(founderPitch.src);
+      URL.revokeObjectURL(founderPitch.src);
+    }
+    setFounderPitch(null);
+    revokePitchDraft();
+    setClipLength(window.length);
+    setClipStart(window.start);
+    setPitchDraft({
+      file,
+      previewUrl: local,
+      durationSec: seconds,
+      name: file.name || "pitch.mp4",
+      bytes: file.size,
+    });
+    const hints = [pitchDurationMessage(seconds), pitchSizeMessage(file.size)].filter(Boolean);
+    setPitchError(hints[0] || "");
+  }
+
+  async function uploadPitchFile(file, seconds) {
+    const duration = formatPitchDuration(Math.min(seconds, PITCH_MAX_SECONDS));
+    const local = previewUrl(file);
+    rememberBlobFile(local, file);
+    if (founderPitch?.src && !isHostedMedia(founderPitch.src)) {
+      forgetBlobFile(founderPitch.src);
+      URL.revokeObjectURL(founderPitch.src);
+    }
+    setFounderPitch({
+      src: local,
+      poster: logo || screens[0] || "",
+      duration,
+      name: file.name || "pitch.mp4",
+    });
+    if (!getToken) {
+      setPitchError("Connectez-vous pour envoyer le pitch en ligne, ou enregistrez plus tard.");
+      return;
+    }
+    setPitchBusyLabel("Envoi…");
+    const uploaded = await uploadMedia(getToken, file, "video");
+    forgetBlobFile(local);
+    URL.revokeObjectURL(local);
+    setFounderPitch({
+      src: uploaded.url,
+      poster: logo || screens[0] || "",
+      duration,
+      name: uploaded.name || file.name || "pitch.mp4",
+    });
     setPitchError("");
   }
 
@@ -342,47 +427,88 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken, mode = "campa
     }
     setPitchError("");
     setPitchBusy(true);
-    let local = "";
+    setPitchBusyLabel("Analyse…");
     try {
       const seconds = await readVideoDuration(file);
-      if (seconds > 60) {
-        setPitchError("La vidéo dépasse 1 minute. Choisissez un pitch de 60 secondes maximum.");
+      const mustTrim = pitchNeedsTrim(seconds);
+      const mustCompress = pitchNeedsCompress(file.size) || pitchTooHeavy(file.size);
+      // Toujours proposer le sélecteur si trop long / trop lourd ; sinon envoi direct si ≤ 60 s et ≤ 100 Mo.
+      if (mustTrim || mustCompress || pitchTooHeavy(file.size)) {
+        openPitchDraft(file, seconds);
         return;
       }
-      const duration = formatPitchDuration(seconds);
-      local = previewUrl(file);
-      rememberBlobFile(local, file);
-      const nextPitch = {
-        src: local,
-        poster: logo || screens[0] || "",
-        duration,
-        name: file.name || "pitch.mp4",
-      };
-      if (founderPitch?.src && !isHostedMedia(founderPitch.src)) {
-        forgetBlobFile(founderPitch.src);
-        URL.revokeObjectURL(founderPitch.src);
-      }
-      setFounderPitch(nextPitch);
-      if (getToken) {
-        const uploaded = await uploadMedia(getToken, file, "video");
-        forgetBlobFile(local);
-        URL.revokeObjectURL(local);
-        setFounderPitch({
-          src: uploaded.url,
-          poster: logo || screens[0] || "",
-          duration,
-          name: uploaded.name || file.name || "pitch.mp4",
-        });
-      }
+      revokePitchDraft();
+      await uploadPitchFile(file, seconds);
     } catch (error) {
-      if (local) {
-        forgetBlobFile(local);
-        URL.revokeObjectURL(local);
-      }
       setFounderPitch(null);
       setPitchError(error.message || "Impossible d’ajouter cette vidéo. Essayez un MP4 ou un MOV.");
     } finally {
       setPitchBusy(false);
+      setPitchBusyLabel("");
+    }
+  }
+
+  function applyClipLength(nextLength) {
+    if (!pitchDraft) return;
+    const window = clampClipWindow(pitchDraft.durationSec, clipStart, nextLength);
+    setClipLength(window.length);
+    setClipStart(window.start);
+  }
+
+  function applyClipStart(nextStart) {
+    if (!pitchDraft) return;
+    const window = clampClipWindow(pitchDraft.durationSec, nextStart, clipLength);
+    setClipStart(window.start);
+    setClipLength(window.length);
+  }
+
+  async function confirmPitchDraft() {
+    if (!pitchDraft || pitchBusy) return;
+    const window = clampClipWindow(pitchDraft.durationSec, clipStart, clipLength);
+    const needsExport = pitchNeedsTrim(pitchDraft.durationSec)
+      || window.start > 0.05
+      || window.length < pitchDraft.durationSec - 0.05
+      || pitchNeedsCompress(pitchDraft.bytes)
+      || pitchTooHeavy(pitchDraft.bytes);
+
+    setPitchBusy(true);
+    setPitchError("");
+    try {
+      let file = pitchDraft.file;
+      let seconds = window.length;
+      if (needsExport) {
+        if (!canExportPitchClip()) {
+          setPitchError(
+            "Mettez à jour Gemelo (dernière TestFlight) pour raccourcir et compresser ici, ou exportez un clip ≤ 60 s et ≤ 100 Mo depuis Photos.",
+          );
+          return;
+        }
+        file = await exportPitchClip(pitchDraft.file, {
+          start: window.start,
+          end: window.end,
+          onStatus: setPitchBusyLabel,
+        });
+        seconds = await readVideoDuration(file).catch(() => window.length);
+        if (pitchTooHeavy(file.size)) {
+          setPitchError(pitchSizeMessage(file.size));
+          return;
+        }
+      }
+      if (pitchNeedsTrim(seconds)) {
+        setPitchError(`L’extrait fait encore ${formatVideoClock(seconds)}. Choisissez au plus ${PITCH_MAX_SECONDS} s.`);
+        return;
+      }
+      if (pitchTooHeavy(file.size)) {
+        setPitchError(pitchSizeMessage(file.size));
+        return;
+      }
+      revokePitchDraft();
+      await uploadPitchFile(file, seconds);
+    } catch (error) {
+      setPitchError(error.message || "Impossible de préparer cette vidéo. Réessayez.");
+    } finally {
+      setPitchBusy(false);
+      setPitchBusyLabel("");
     }
   }
 
@@ -418,7 +544,8 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken, mode = "campa
     if (logo && !isHostedMedia(logo)) next.logo = "Attendez la fin de l’envoi du logo (ou réessayez).";
     if (screens.some((src) => src && !isHostedMedia(src))) next.screens = "Attendez la fin de l’envoi des captures (ou réessayez).";
     if (!community) {
-      if (!founderPitch?.src) next.founderPitch = "Le pitch entrepreneur est obligatoire (vidéo, 1 minute max.).";
+      if (pitchDraft) next.founderPitch = "Validez l’extrait du pitch (durée et poids) avant d’enregistrer.";
+      else if (!founderPitch?.src) next.founderPitch = "Le pitch entrepreneur est obligatoire (vidéo, 60 s max.).";
       else if (pitchBusy || !isHostedMedia(founderPitch.src)) next.founderPitch = "Attendez la fin de l’envoi du pitch (ou réessayez).";
     }
     setErrors(next);
@@ -579,9 +706,82 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken, mode = "campa
             <SectionTitle
               icon="▶"
               title="Pitch entrepreneur"
-              description="Vidéo obligatoire · durée max. 1 minute. Les testeurs la voient sur votre page campagne."
+              description="Vidéo obligatoire · 60 s max. · 100 Mo max. Raccourcissez ici avant l’envoi. Les testeurs la voient sur votre page campagne."
             />
-            {founderPitch?.src ? (
+            {pitchDraft ? (
+              <div className="v2-pitch-trim">
+                <div className="v2-pitch-trim-preview">
+                  <video
+                    src={pitchDraft.previewUrl}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    aria-label="Aperçu du pitch à raccourcir"
+                  />
+                </div>
+                <p className="v2-helper v2-helper--left">
+                  {pitchDraft.name} · source {formatVideoClock(pitchDraft.durationSec)} · {formatFileMegabytes(pitchDraft.bytes)}
+                </p>
+                <div className="v2-field">
+                  <span>Durée de l’extrait</span>
+                  <div className="v2-pills v2-pills--wrap" role="group" aria-label="Durée de l’extrait">
+                    {PITCH_DURATION_CHIPS.map((seconds) => {
+                      const disabled = seconds > Math.ceil(pitchDraft.durationSec);
+                      return (
+                        <button
+                          key={seconds}
+                          type="button"
+                          className={clipLength === seconds ? "is-on" : ""}
+                          aria-pressed={clipLength === seconds}
+                          disabled={disabled || pitchBusy}
+                          onClick={() => applyClipLength(seconds)}
+                        >
+                          {seconds} s
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {pitchDraft.durationSec > clipLength ? (
+                  <label className="v2-field">
+                    <span>
+                      Début · {formatVideoClock(clipStart)} → {formatVideoClock(clipStart + clipLength)}
+                    </span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={Math.max(0, pitchDraft.durationSec - clipLength)}
+                      step={0.1}
+                      value={clipStart}
+                      disabled={pitchBusy}
+                      onChange={(event) => applyClipStart(Number(event.target.value))}
+                    />
+                  </label>
+                ) : null}
+                <p className="v2-helper v2-helper--left">
+                  Extrait : {formatVideoClock(clipLength)}
+                  {pitchNeedsCompress(pitchDraft.bytes) || pitchTooHeavy(pitchDraft.bytes)
+                    ? " · compression à l’envoi"
+                    : ""}
+                </p>
+                {pitchSizeMessage(pitchDraft.bytes) && !pitchNeedsTrim(pitchDraft.durationSec) ? (
+                  <p className="v2-info" role="status">{pitchSizeMessage(pitchDraft.bytes)}</p>
+                ) : null}
+                <div className="v2-pitch-trim-actions">
+                  <Button type="button" disabled={pitchBusy} onClick={confirmPitchDraft}>
+                    {pitchBusy ? (pitchBusyLabel || "Préparation…") : "Utiliser cet extrait"}
+                    {pitchBusy ? null : <span aria-hidden="true"> →</span>}
+                  </Button>
+                  <Button type="button" variant="outline" disabled={pitchBusy} onClick={() => pitchInput.current?.click()}>
+                    Choisir une autre vidéo
+                  </Button>
+                  <button type="button" className="v2-text-button" disabled={pitchBusy} onClick={clearFounderPitch}>
+                    Annuler
+                  </button>
+                </div>
+                <input ref={pitchInput} className="v2-hidden-input" type="file" accept="video/*" disabled={pitchBusy} onChange={choosePitch} />
+              </div>
+            ) : founderPitch?.src ? (
               <div className="v2-logo-editor">
                 <div className="v2-pitch-preview">
                   <video
@@ -598,7 +798,7 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken, mode = "campa
                     {founderPitch.duration ? ` · ${founderPitch.duration}` : ""}
                   </p>
                   <Button type="button" variant="outline" disabled={pitchBusy} onClick={() => pitchInput.current?.click()}>
-                    {pitchBusy ? "Envoi…" : "Remplacer"}
+                    {pitchBusy ? (pitchBusyLabel || "Envoi…") : "Remplacer"}
                   </Button>
                   <button type="button" className="v2-text-button" disabled={pitchBusy} onClick={clearFounderPitch}>
                     Supprimer
@@ -609,7 +809,7 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken, mode = "campa
               <label className={`v2-upload is-dashed${pitchBusy ? " is-busy" : ""}`}>
                 <span aria-hidden="true">▶</span>
                 <strong>Ajouter le pitch</strong>
-                <small>{pitchBusy ? "Envoi…" : "MP4 ou MOV · 1 minute max. · obligatoire"}</small>
+                <small>{pitchBusy ? (pitchBusyLabel || "Envoi…") : "MP4 ou MOV · 60 s max. · 100 Mo · obligatoire"}</small>
                 <input
                   ref={pitchInput}
                   type="file"
@@ -619,7 +819,7 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken, mode = "campa
                 />
               </label>
             )}
-            {founderPitch?.src ? (
+            {founderPitch?.src && !pitchDraft ? (
               <input ref={pitchInput} className="v2-hidden-input" type="file" accept="video/*" disabled={pitchBusy} onChange={choosePitch} />
             ) : null}
             {pitchError ? <p className="v2-error" role="alert">{pitchError}</p> : null}

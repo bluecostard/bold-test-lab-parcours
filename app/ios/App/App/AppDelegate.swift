@@ -9,6 +9,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Empêche le linker d’éliminer le plugin IAP (classe locale hors SPM).
         _ = GemeloIapPlugin.self
+        _ = GemeloVideoPlugin.self
         _ = GemeloBridgeViewController.self
         return true
     }

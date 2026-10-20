@@ -56,6 +56,12 @@ export default defineConfig({
       "/api/lead": "http://127.0.0.1:4192",
       "/api/event": "http://127.0.0.1:4192",
       "/api/health": "http://127.0.0.1:4192",
+      // Dev : campagnes / IAP / etc. depuis la prod (sinon l’accueil local reste vide).
+      "/api": {
+        target: "https://gemelo.online",
+        changeOrigin: true,
+        secure: true,
+      },
     },
   },
   preview: {

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { SignIn, SignUp, useAuth, useSignIn, useUser } from "@clerk/react";
 import { slotAvailable } from "../../lib/availability.js";
-import { apply, campaignDeadlineLabel, campaignPeriodLabel, campaignRemainingMsFor, campaignTimerParts, campaignTimerProgress, canManageBooking, demoOfferDays, formattedDate, isCampaignSlotActive, isIsoDate, localToday } from "./booking.js";
+import { apply, campaignDeadlineLabel, campaignPeriodLabel, campaignRemainingMsFor, campaignResultStatus, campaignResultStatusLabel, campaignTimerParts, campaignTimerProgress, canManageBooking, demoOfferDays, formattedDate, isCampaignSlotActive, isIsoDate, localToday } from "./booking.js";
 import { useCampaignCatalog } from "./catalog.js";
 import { campaigns, formatOfferPrice, formatStoredOfferPrice, offers, ranking, testerComments, testerRail } from "./data.js";
 import { isNativeIos } from "./nativePay.js";
@@ -164,10 +164,8 @@ function capPitchPlayback(event) {
 
 function PitchViewer({ pitch, name, onClose, navigate, openDrawer }) {
   const closeRef = useRef(null);
-  const videoRef = useRef(null);
   useLayoutEffect(() => {
     closeRef.current?.focus();
-    videoRef.current?.play?.().catch(() => {});
   }, []);
   useEffect(() => {
     function onKey(event) {
@@ -188,11 +186,11 @@ function PitchViewer({ pitch, name, onClose, navigate, openDrawer }) {
         </div>
         <div className="v2-phone-frame">
           <video
-            ref={videoRef}
             src={pitch.src}
             poster={pitch.poster}
             controls
             playsInline
+            preload="none"
             onTimeUpdate={capPitchPlayback}
             aria-label={`Pitch du fondateur, ${name}`}
           />
@@ -305,6 +303,43 @@ function padTime(value) {
   return String(value).padStart(2, "0");
 }
 
+function compactScheduledDate(value) {
+  if (!isIsoDate(value)) return "";
+  const raw = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "short" })
+    .format(new Date(`${value}T12:00:00`));
+  return raw.replace(/\.$/, "");
+}
+
+function scheduledAnnounceLabel(campaign) {
+  const date = compactScheduledDate(campaign?.offerDate);
+  const range = String(campaign?.offerRange || "").trim();
+  if (date && range) return `Débute ${date} · ${range}`;
+  if (date) return `Débute ${date}`;
+  return "Bientôt disponible";
+}
+
+function isHomeActiveCampaign(item) {
+  return item.slotActive === true || (item.slotActive == null && isCampaignSlotActive(item));
+}
+
+function isHomeScheduledCampaign(item) {
+  if (item.slotScheduled === true) return true;
+  if (item.slotScheduled === false || item.slotActive === true) return false;
+  return campaignResultStatus(item) === "scheduled";
+}
+
+function ScheduledCampaignNotice({ campaign }) {
+  return (
+    <div className="v2-scheduled-line" role="status">
+      <span className="v2-status-live">{campaignResultStatusLabel("scheduled")}</span>
+      <p>
+        <strong>{campaign.name}</strong>
+        <span>{scheduledAnnounceLabel(campaign)}</span>
+      </p>
+    </div>
+  );
+}
+
 function FeaturedCampaignCard({ campaign, navigate }) {
   const shot = campaign.screenshots?.[0] || campaign.cover || campaign.logo;
   const timer = useCampaignTimer(campaign);
@@ -344,8 +379,12 @@ export function DiscoverScreen({ navigate, pageRef, openDrawer }) {
   const catalog = useCampaignCatalog();
   const seedIds = new Set(campaigns.map((item) => item.id));
   const apiCampaigns = catalog.filter((item) => !seedIds.has(item.id) && item.live !== false);
-  // Accueil : créneaux réellement actifs uniquement. Une campagne API expirée (live:true) ne masque plus le seed.
-  const activeApi = apiCampaigns.filter((item) => item.slotActive === true || (item.slotActive == null && isCampaignSlotActive(item)));
+  // Accueil featured : créneaux réellement actifs uniquement. Une campagne API expirée (live:true) ne masque plus le seed.
+  const activeApi = apiCampaigns.filter(isHomeActiveCampaign);
+  const scheduledApi = apiCampaigns
+    .filter(isHomeScheduledCampaign)
+    .slice()
+    .sort((a, b) => String(a.offerDate || "").localeCompare(String(b.offerDate || "")));
   const homePool = activeApi.length
     ? activeApi
     : catalog.filter((item) => seedIds.has(item.id) && item.live !== false);
@@ -380,6 +419,9 @@ export function DiscoverScreen({ navigate, pageRef, openDrawer }) {
             <p className="v2-helper">Les avis se déposent uniquement sur une campagne entrepreneur.</p>
           </Card>
         )}
+        {scheduledApi.map((item) => (
+          <ScheduledCampaignNotice key={item.id} campaign={item} />
+        ))}
         <Card>
           <SectionTitle
             icon="✳"

@@ -2,7 +2,8 @@ import { upload } from "@vercel/blob/client";
 import { hostedMediaUrl, publicMediaUrl } from "../../lib/mediaUrl.js";
 
 const imageMax = 10 * 1024 * 1024;
-const videoMax = 100 * 1024 * 1024;
+/** Aligné preuves avis (maquette) et pitch entrepreneur. */
+export const videoMax = 100 * 1024 * 1024;
 const pending = new Map();
 
 export function isHostedMedia(url) {
@@ -257,7 +258,11 @@ export async function uploadMedia(getToken, file, kind = "image", options = {}) 
   }
   const max = type === "video" ? videoMax : imageMax;
   if (ready.size > max) {
-    throw new Error(type === "video" ? "La vidéo dépasse 100 Mo." : "L’image dépasse 10 Mo.");
+    throw new Error(
+      type === "video"
+        ? "La vidéo dépasse 100 Mo. Raccourcissez l’extrait dans le pitch (15–45 s) ou compressez-la avant l’envoi."
+        : "L’image dépasse 10 Mo.",
+    );
   }
   if (type === "video" && !ready.type.startsWith("video/")) {
     throw new Error("Choisissez une vidéo MP4 ou MOV.");
