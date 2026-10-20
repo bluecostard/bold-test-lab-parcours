@@ -1,0 +1,49 @@
+name: iOS App Store Submit
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "Numéro de build TestFlight (vide = dernier pour la version)"
+        required: false
+        default: ""
+      app_version:
+        description: "Version marketing App Store"
+        required: false
+        default: "1.0"
+
+concurrency:
+  group: ios-submit
+  cancel-in-progress: false
+
+jobs:
+  submit:
+    name: Soumettre en review App Store
+    runs-on: macos-26
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+      APP_VERSION: ${{ inputs.app_version }}
+      BUILD_NUMBER: ${{ inputs.build_number }}
+    steps:
+      - name: Vérifier les secrets
+        run: |
+          test -n "$APP_STORE_CONNECT_KEY_ID" || { echo "Secret APP_STORE_CONNECT_KEY_ID manquant"; exit 1; }
+          test -n "$APP_STORE_CONNECT_ISSUER_ID" || { echo "Secret APP_STORE_CONNECT_ISSUER_ID manquant"; exit 1; }
+          test -n "$APP_STORE_CONNECT_API_KEY" || { echo "Secret APP_STORE_CONNECT_API_KEY manquant"; exit 1; }
+
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+          working-directory: app/ios
+
+      - name: Soumettre pour review
+        working-directory: app/ios
+        run: bundle exec fastlane ios submit
