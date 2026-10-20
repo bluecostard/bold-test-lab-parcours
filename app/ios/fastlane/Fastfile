@@ -167,6 +167,28 @@ platform :ios do
     end
     UI.success("Build #{build_number} pret (#{ready_build.id})")
 
+    # Creer App Store Review Detail avant deliver (sinon crash « No data » sur les pieces jointes).
+    version_edit = app.get_edit_app_store_version(platform: Spaceship::ConnectAPI::Platform::IOS)
+    unless version_edit
+      version_edit = app.create_version!(version_string: version, platform: Spaceship::ConnectAPI::Platform::IOS)
+    end
+    begin
+      version_edit.fetch_app_store_review_detail
+    rescue StandardError
+      notes = File.read(File.expand_path("metadata/fr-FR/review_information/notes.txt", __dir__)).to_s.strip
+      Spaceship::ConnectAPI.post_app_store_review_detail(
+        app_store_version_id: version_edit.id,
+        attributes: {
+          contactFirstName: File.read(File.expand_path("metadata/fr-FR/review_information/first_name.txt", __dir__)).to_s.strip,
+          contactLastName: File.read(File.expand_path("metadata/fr-FR/review_information/last_name.txt", __dir__)).to_s.strip,
+          contactPhone: File.read(File.expand_path("metadata/fr-FR/review_information/phone_number.txt", __dir__)).to_s.strip,
+          contactEmail: File.read(File.expand_path("metadata/fr-FR/review_information/email_address.txt", __dir__)).to_s.strip,
+          notes: notes
+        }
+      )
+      UI.success("App Store Review Detail cree")
+    end
+
     deliver(
       api_key: api_key,
       app_identifier: "online.gemelo.app",

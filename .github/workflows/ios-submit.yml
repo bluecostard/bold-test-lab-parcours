@@ -44,6 +44,17 @@ jobs:
           bundler-cache: true
           working-directory: app/ios
 
+      - name: Préparer les captures App Store
+        working-directory: app
+        run: |
+          mkdir -p ios/fastlane/screenshots/fr-FR
+          i=1
+          for f in 01-accueil 02-campagne 03-avis 10-classement 12-offre 16-rapport; do
+            cp "public/stores/captures/${f}.jpg" "ios/fastlane/screenshots/fr-FR/${i}_iphone67_${f}.jpg"
+            i=$((i + 1))
+          done
+          ls -la ios/fastlane/screenshots/fr-FR
+
       - name: Soumettre pour review
         working-directory: app/ios
         run: bundle exec fastlane ios submit
