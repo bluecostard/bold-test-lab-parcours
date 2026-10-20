@@ -24,9 +24,12 @@ async function deliver(to, mail) {
 }
 
 async function liveCampaigns() {
-  const listed = (await listCampaigns()).filter((item) => item.live !== false && item.name);
-  if (!listed.some((item) => item.id === "bed-hop")) listed.push(bedHop);
-  return listed;
+  return (await listCampaigns()).filter((item) => item.live !== false && item.name);
+}
+
+/** Campagnes avec vrai créneau payé — exclut la démo Bed Hop (cycle 24 h artificiel). */
+async function closingCandidates() {
+  return (await liveCampaigns()).filter((item) => item.offerDate && item.id !== "bed-hop");
 }
 
 export async function queueCampaignNotice(campaignId) {
@@ -131,24 +134,36 @@ async function sendRanking(prefs, budget) {
 
 async function sendClosing(prefs, budget) {
   const now = Date.now();
-  const campaigns = await liveCampaigns();
+  const campaigns = await closingCandidates();
   const closing = campaigns.find((campaign) => {
     const left = campaignRemainingMs(campaign, now);
     return left > 3 * HOUR && left <= 5 * HOUR && !prefs.closingSent?.[`${campaign.id}-${campaignEndMs(campaign, now)}`];
   });
-  if (!closing || budget <= 0) return { sent: 0, closingSent: prefs.closingSent || {}, closingRecipients: prefs.closingRecipients || {} };
+  if (!closing || budget <= 0) {
+    return { sent: 0, closingSent: prefs.closingSent || {}, closingRecipients: prefs.closingRecipients || {}, claimed: false };
+  }
   const key = `${closing.id}-${campaignEndMs(closing, now)}`;
+  // Réclamer avant tout envoi : évite 5× le même rappel si /api/campaigns relance en parallèle.
+  const claimedAt = new Date().toISOString();
+  const closingSent = { ...(prefs.closingSent || {}), [key]: claimedAt };
+  await writeMailState({ closingSent });
+  const refreshed = await readMailPrefs();
+  if (refreshed.closingSent?.[key] && refreshed.closingSent[key] !== claimedAt) {
+    return {
+      sent: 0,
+      closingSent: refreshed.closingSent,
+      closingRecipients: refreshed.closingRecipients || prefs.closingRecipients || {},
+      claimed: false,
+    };
+  }
+
   const already = { ...((prefs.closingRecipients || {})[key] || {}) };
   const { ranking } = await buildRanking("");
   const recipients = listRecipients(prefs, "closing").filter((entry) => entry.userId !== closing.ownerId && !already[entry.userId]);
   const hours = Math.max(1, Math.round(campaignRemainingMs(closing, now) / HOUR));
   let sent = 0;
-  let failed = false;
   for (const entry of recipients) {
-    if (sent >= budget) {
-      failed = true;
-      break;
-    }
+    if (sent >= budget) break;
     const mine = ranking.find((row) => row.authorId && row.authorId === entry.userId);
     try {
       await deliver(entry.email, closingEmail({
@@ -164,16 +179,14 @@ async function sendClosing(prefs, budget) {
       sent += 1;
     } catch (error) {
       console.log("mail-closing", String(error?.message || error).slice(0, 180));
-      failed = true;
       break;
     }
   }
-  const closingSent = { ...(prefs.closingSent || {}) };
-  if (!failed) closingSent[key] = new Date().toISOString();
   return {
     sent,
     closingSent,
     closingRecipients: { ...(prefs.closingRecipients || {}), [key]: already },
+    claimed: true,
   };
 }
 
@@ -182,7 +195,7 @@ export async function runMailJobs() {
   const campaign = await sendCampaignNotices(prefs, MAX_SENDS);
   const ranking = await sendRanking(prefs, MAX_SENDS - campaign.sent);
   const closing = await sendClosing(prefs, MAX_SENDS - campaign.sent - ranking.sent);
-  const dirty = campaign.sent || ranking.sent || closing.sent
+  const dirty = campaign.sent || ranking.sent || closing.sent || closing.claimed
     || (prefs.pendingCampaigns || []).join() !== campaign.pendingCampaigns.join()
     || ranking.rankingSent !== prefs.rankingSent
     || Object.keys(closing.closingSent || {}).length !== Object.keys(prefs.closingSent || {}).length;

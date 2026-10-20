@@ -63,12 +63,12 @@ export async function confirmCheckout(getToken, sessionId) {
   return data;
 }
 
-/** Envoie (ou renvoie) l’e-mail de confirmation de campagne au créateur. */
-export async function requestCampaignConfirmMail(getToken, email = "", force = true) {
+/** Envoie (ou renvoie) l’e-mail de confirmation de campagne au créateur. force=false par défaut (anti-doublon). */
+export async function requestCampaignConfirmMail(getToken, email = "", force = false) {
   const response = await fetch("/api/campaign-confirm-mail", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(await authHeader(getToken)) },
-    body: JSON.stringify({ email: email || undefined, force }),
+    body: JSON.stringify({ email: email || undefined, force: Boolean(force) }),
   });
   const data = await readJson(response);
   if (!response.ok) throw new Error(data.error || "Envoi impossible.");

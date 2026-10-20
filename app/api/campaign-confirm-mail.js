@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   const booking = await readBooking(user.id);
   if (!booking?.paid) return res.status(403).json({ error: "Aucun créneau payé." });
   const email = clean(req.body?.email, 254).toLowerCase();
-  const force = req.body?.force !== false;
+  const force = req.body?.force === true;
   try {
     const campaign = booking.campaignId ? await readCampaign(booking.campaignId) : booking.campaign;
     const result = await sendCampaignPaidMail(

@@ -31,8 +31,7 @@
     }
   ],
   "crons": [
-    { "path": "/api/mail-cron", "schedule": "0 6 * * *" },
-    { "path": "/api/mail-cron", "schedule": "0 18 * * *" }
+    { "path": "/api/mail-cron", "schedule": "0 * * * *" }
   ],
   "rewrites": [
     { "source": "/besoin/", "destination": "/besoin/index.html" },

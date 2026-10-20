@@ -123,13 +123,15 @@ export function campaignPaidEmail({
   offerRange,
   offerDate,
   offerPrice,
+  offerPriceLabel,
   token,
 }) {
   const subject = "Votre campagne Gemelo est confirmée";
   const preview = "Paiement reçu. Votre créneau est réservé.";
   const hello = greeting(name);
   const day = formatOfferDay(offerDate);
-  const price = offerPrice != null && offerPrice !== "" ? `${offerPrice} €` : "";
+  const price = offerPriceLabel
+    || (offerPrice != null && offerPrice !== "" ? `${offerPrice} €` : "");
   const href = `${APP}/?app=1&ecran=results`;
   const inner = `
     <p style="margin:16px 0 0;font-size:16px;line-height:1.45">${escapeHtml(hello)}</p>

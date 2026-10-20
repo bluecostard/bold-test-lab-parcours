@@ -1076,11 +1076,7 @@ function PaymentBody({ navigate, back, pageRef, getToken, user }) {
           offerPrice: result.offerPrice || next.offerPrice,
           offerDate: result.offerDate || next.offerDate,
         });
-        try {
-          await requestCampaignConfirmMail(getToken, common.email);
-        } catch {
-          /* l’écran confirmation retente */
-        }
+        // L’e-mail part déjà dans fulfillBooking côté serveur ; l’écran confirmation rattrape si besoin (sans force).
         navigate("confirmation", {}, true);
         return;
       }
@@ -1204,16 +1200,16 @@ function ConfirmationBody({ navigate, pageRef, getToken, email = "" }) {
       window.history.replaceState({}, "", "/?ecran=confirmation");
     }).catch(() => navigate("payment", {}, true));
   }, [getToken, navigate]);
-  async function sendConfirmMail() {
+  async function sendConfirmMail(force = false) {
     if (!getToken || mailBusy) return;
     setMailBusy(true);
-    setMailStatus("Envoi de l’e-mail de confirmation…");
+    setMailStatus(force ? "Renvoi de l’e-mail de confirmation…" : "Envoi de l’e-mail de confirmation…");
     try {
-      const result = await requestCampaignConfirmMail(getToken, email, true);
+      const result = await requestCampaignConfirmMail(getToken, email, force);
       setMailStatus(
         result.sent
           ? `Confirmation envoyée${email ? ` à ${email}` : ""}. Vérifiez aussi les indésirables.`
-          : "E-mail déjà traité. Vérifiez vos indésirables, ou réessayez dans une minute.",
+          : "E-mail déjà envoyé. Vérifiez vos indésirables, ou utilisez « Renvoyer ».",
       );
     } catch (error) {
       setMailStatus(error.message || "Envoi impossible pour le moment.");
@@ -1223,9 +1219,9 @@ function ConfirmationBody({ navigate, pageRef, getToken, email = "" }) {
   }
   useEffect(() => {
     if (!ready || !getToken) return;
-    sendConfirmMail();
+    sendConfirmMail(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- un envoi au chargement de la confirmation
-  }, [ready, getToken, email]);
+  }, [ready, getToken]);
   if (!ready) {
     return (
       <PageShell pageRef={pageRef}>
@@ -1267,7 +1263,7 @@ function ConfirmationBody({ navigate, pageRef, getToken, email = "" }) {
           {mailStatus ? <p className="v2-helper" role="status">{mailStatus}</p> : null}
           <Button type="button" onClick={() => navigate("results", {}, true)}>Voir ma campagne <span aria-hidden="true">→</span></Button>
           <Button type="button" variant="outline" onClick={() => setReceipt(true)}>Voir mon reçu</Button>
-          <Button type="button" variant="outline" disabled={mailBusy} onClick={sendConfirmMail}>
+          <Button type="button" variant="outline" disabled={mailBusy} onClick={() => sendConfirmMail(true)}>
             {mailBusy ? "Envoi…" : "Renvoyer l’e-mail de confirmation"}
           </Button>
         </Card>
