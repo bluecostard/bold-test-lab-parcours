@@ -1,0 +1,9 @@
+Compte : inscription ouverte via Clerk — pas de compte démo inventé. Confirmer 16 ans à l’ouverture.
+
+Parcours : Accueil, page campagne, publier un avis (photo / vidéo), signaler, bloquer, messagerie (après paiement), Réglages (notifications, données, suppression de compte), Contact.
+
+Paiement iOS : compte Sandbox App Store (Réglages iOS → App Store → Compte Sandbox). Dans Gemelo : profil → Faire tester mon service → choisir une offre → payer avec la feuille Apple (StoreKit). Stripe n’est pas utilisé dans l’app iOS.
+
+Produits : online.gemelo.slot.19, .39, .55, .65, .49, .109, .149 (consommables).
+
+Suppression : Réglages → Supprimer mon compte.
