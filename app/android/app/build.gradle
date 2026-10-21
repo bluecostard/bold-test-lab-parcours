@@ -34,8 +34,14 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // R8 → mapping.txt pour Play (désobscurcissement des plantages)
+            minifyEnabled true
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Symboles natifs inclus dans l’AAB (avertissement Play)
+            ndk {
+                debugSymbolLevel 'SYMBOL_TABLE'
+            }
             def releaseSigning = signingConfigs.release
             if (releaseSigning.storeFile != null) {
                 signingConfig releaseSigning

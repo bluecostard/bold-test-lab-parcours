@@ -1,21 +1,21 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Gemelo / Capacitor — garder plugins, WebView, Cordova
+-keepattributes SourceFile,LineNumberTable,*Annotation*,Signature,Exceptions,InnerClasses,EnclosingMethod
+-renamesourcefileattribute SourceFile
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+-keep class com.getcapacitor.** { *; }
+-keep class org.apache.cordova.** { *; }
+-keep class online.gemelo.app.** { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+-keepclassmembers class * {
+    @com.getcapacitor.PluginMethod *;
+}
+-keepclassmembers class * {
+    @com.getcapacitor.annotation.CapacitorPlugin *;
+}
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+-dontwarn com.getcapacitor.**
+-dontwarn org.apache.cordova.**

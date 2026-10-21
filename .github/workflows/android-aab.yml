@@ -86,3 +86,11 @@ jobs:
           path: app/android/app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publier mapping R8 (désobscurcissement Play)
+        uses: actions/upload-artifact@v4
+        with:
+          name: gemelo-android-mapping
+          path: app/android/app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: warn
+          retention-days: 30
