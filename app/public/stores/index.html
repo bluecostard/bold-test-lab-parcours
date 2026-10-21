@@ -28,6 +28,7 @@
       <p>Nom. Gemelo</p>
       <p>Éditeur. Blue Costard Compagnie — SIRET 109 416 958 00014</p>
       <p>Bundle iOS. online.gemelo.app</p>
+      <p>Package Android. online.gemelo.app</p>
       <p>Sous-titre. Votre projet. Leur regard.</p>
       <p>Description courte. Faites tester votre application ou votre site, et gagnez en visibilité en partageant des avis utiles.</p>
       <p>Description. Gemelo relie les personnes qui créent des produits numériques à celles qui aiment les découvrir. Un entrepreneur choisit un créneau de mise en avant. Les testeurs essaient le projet, publient un avis, des captures ou une vidéo. Les likes font progresser le classement des 30 derniers jours. Les projets des testeurs du top 10 restent visibles tant qu’ils y figurent. Aucune offre ne garantit un nombre de tests.</p>
@@ -80,8 +81,9 @@
 
       <h2>Build et pipeline</h2>
       <p>Binaire iOS. Capacitor, bundle online.gemelo.app. L’IPA charge https://gemelo.online/?app=1. Builds TestFlight via GitHub Actions + Fastlane (workflow « iOS TestFlight »). Soumission review via workflow « iOS App Store Submit » (lane fastlane ios submit).</p>
+      <p>Binaire Android. Capacitor, package online.gemelo.app. L’AAB charge https://gemelo.online/?app=1. Projet dans app/android/. Signature upload : npm run android:keystore (dossier Desktop/Gemelo-Android-signing, hors git). Bundle local : npm run android:bundle (avec CM_KEYSTORE_*).</p>
       <p>Privacy Manifest. PrivacyInfo.xcprivacy inclus dans la cible App (pas de tracking ; UserDefaults CA92.1 ; données collectées alignées sur la confidentialité).</p>
-      <p>Web. Stripe reste le paiement sur gemelo.online hors app native.</p>
+      <p>Web. Stripe reste le paiement sur gemelo.online hors app native. Play Billing pas encore branché — les créneaux dans l’app Android passeront aussi par Stripe web tant que Billing n’est pas prêt.</p>
 
       <h2>État soumission</h2>
       <p>IAP. Les 7 consommables online.gemelo.slot.* sont Ready to Submit. Test Sandbox bout-en-bout validé sur TestFlight.</p>
@@ -93,6 +95,7 @@
         <li>Relancer le workflow GitHub « iOS App Store Submit » (build 36).</li>
       </ol>
       <p>Cible iPhone seule — pas de captures iPad. Accords Paid Applications / fiscalité / banque à jour.</p>
+      <p>Android / Play. Socle Capacitor prêt (version 1.0, versionCode 1). Prochaines étapes : créer l’app dans Play Console, uploader un AAB signé (piste interne), renseigner Data safety + captures, puis brancher Play Billing + FCM.</p>
     </main>
     <footer>Gemelo · gemelo.online</footer>
   </div>

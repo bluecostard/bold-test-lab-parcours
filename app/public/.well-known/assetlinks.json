@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "online.gemelo.app",
+      "sha256_cert_fingerprints": [
+        "B0:77:11:11:2F:AE:EC:61:42:4F:22:AD:1E:61:DE:4E:4B:03:39:1D:A7:5C:CA:F0:45:A3:74:32:39:B2:2A:18"
+      ]
+    }
+  }
+]

@@ -24,6 +24,12 @@
     "preferredContentMode": "mobile",
     "scheme": "App"
   },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#07111c",
+    "webContentsDebuggingEnabled": false
+  },
+
   "plugins": {
     "CapacitorHttp": {
       "enabled": true

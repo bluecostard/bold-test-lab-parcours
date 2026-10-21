@@ -14,3 +14,14 @@ ios/fastlane/report.xml
 ios/fastlane/Preview.html
 ios/fastlane/screenshots
 ios/*.mobileprovision
+android/.gradle
+android/app/build
+android/build
+android/captures
+android/local.properties
+android/*.keystore
+android/*.jks
+android/app/google-services.json
+*.p12
+*.b64
+**/Gemelo-Android-signing/

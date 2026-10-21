@@ -44,6 +44,6 @@
     { "source": "/supprimer/", "destination": "/supprimer/index.html" },
     { "source": "/regles/", "destination": "/regles/index.html" },
     { "source": "/introuvable/", "destination": "/introuvable/index.html" },
-    { "source": "/((?!api/|besoin|confidentialite|cgu|cgv|legal|contact|mentions|stores|supprimer|regles|introuvable|sw\\.js|manifest\\.webmanifest|robots\\.txt|sitemap\\.xml|offline\\.html).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|\\.well-known|besoin|confidentialite|cgu|cgv|legal|contact|mentions|stores|supprimer|regles|introuvable|sw\\.js|manifest\\.webmanifest|robots\\.txt|sitemap\\.xml|offline\\.html).*)", "destination": "/index.html" }
   ]
 }

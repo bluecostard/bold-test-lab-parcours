@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Gemelo</string>
+    <string name="title_activity_main">Gemelo</string>
+    <string name="package_name">online.gemelo.app</string>
+    <string name="custom_url_scheme">online.gemelo.app</string>
+</resources>

@@ -6,11 +6,15 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "cap:sync": "vite build && cap sync ios && node scripts/register-iap-plugin.mjs",
+    "cap:sync": "vite build && cap sync ios android && node scripts/register-iap-plugin.mjs",
     "cap:ios": "cap open ios",
-    "cap:register-iap": "node scripts/register-iap-plugin.mjs"
+    "cap:android": "cap open android",
+    "cap:register-iap": "node scripts/register-iap-plugin.mjs",
+    "android:bundle": "cd android && ./gradlew bundleRelease",
+    "android:keystore": "bash scripts/make-android-keystore.sh"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
     "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.5.3",
     "@capacitor/ios": "^8.5.3",
