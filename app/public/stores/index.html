@@ -81,7 +81,7 @@
 
       <h2>Build et pipeline</h2>
       <p>Binaire iOS. Capacitor, bundle online.gemelo.app. L’IPA charge https://gemelo.online/?app=1. Builds TestFlight via GitHub Actions + Fastlane (workflow « iOS TestFlight »). Soumission review via workflow « iOS App Store Submit » (lane fastlane ios submit).</p>
-      <p>Binaire Android. Capacitor, package online.gemelo.app. L’AAB charge https://gemelo.online/?app=1. Projet dans app/android/. Signature upload : npm run android:keystore (dossier Desktop/Gemelo-Android-signing, hors git). Bundle local : npm run android:bundle (avec CM_KEYSTORE_*).</p>
+      <p>Binaire Android. Capacitor, package online.gemelo.app. L’AAB charge https://gemelo.online/?app=1. Projet dans app/android/. Signature : dossier Desktop/Gemelo-Android-signing (hors git). Build : workflow GitHub « Android AAB » (artefact gemelo-android-aab). Secrets : ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD.</p>
       <p>Privacy Manifest. PrivacyInfo.xcprivacy inclus dans la cible App (pas de tracking ; UserDefaults CA92.1 ; données collectées alignées sur la confidentialité).</p>
       <p>Web. Stripe reste le paiement sur gemelo.online hors app native. Play Billing pas encore branché — les créneaux dans l’app Android passeront aussi par Stripe web tant que Billing n’est pas prêt.</p>
 

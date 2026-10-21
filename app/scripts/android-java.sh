@@ -3,6 +3,7 @@
 set -euo pipefail
 
 candidates=(
+  "$HOME/Library/Java/JavaVirtualMachines/jdk-17.0.20.1+1/Contents/Home"
   "/usr/local/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"
   "/usr/local/opt/openjdk@17"
   "/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"

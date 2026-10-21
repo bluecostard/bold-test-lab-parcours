@@ -1,0 +1,88 @@
+name: Android AAB
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_code:
+        description: "versionCode Play (laisser vide = numéro de run)"
+        required: false
+        type: string
+
+concurrency:
+  group: android-aab
+  cancel-in-progress: true
+
+jobs:
+  aab:
+    name: Compiler l’AAB signé
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      CM_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      CM_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      CM_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      CM_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - name: Vérifier les secrets de signature
+        run: |
+          test -n "$CM_KEYSTORE" || { echo "Secret ANDROID_KEYSTORE_BASE64 manquant"; exit 1; }
+          test -n "$CM_KEYSTORE_PASSWORD" || { echo "Secret ANDROID_KEYSTORE_PASSWORD manquant"; exit 1; }
+          test -n "$CM_KEY_ALIAS" || { echo "Secret ANDROID_KEY_ALIAS manquant"; exit 1; }
+          test -n "$CM_KEY_PASSWORD" || { echo "Secret ANDROID_KEY_PASSWORD manquant"; exit 1; }
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Installer et synchroniser Capacitor Android
+        working-directory: app
+        run: |
+          npm ci
+          npm run build
+          npx cap sync android
+
+      - name: Préparer le keystore
+        working-directory: app
+        run: |
+          printf '%s' "$CM_KEYSTORE" | base64 --decode > gemelo-upload.p12
+          test -s gemelo-upload.p12
+          echo "CM_KEYSTORE_PATH=$GITHUB_WORKSPACE/app/gemelo-upload.p12" >> "$GITHUB_ENV"
+
+      - name: Compiler bundleRelease
+        working-directory: app/android
+        env:
+          CM_KEYSTORE_PATH: ${{ env.CM_KEYSTORE_PATH }}
+        run: |
+          VERSION_CODE="${{ inputs.version_code }}"
+          if [ -z "$VERSION_CODE" ]; then
+            VERSION_CODE="${{ github.run_number }}"
+          fi
+          chmod +x gradlew
+          ./gradlew bundleRelease \
+            -PandroidVersionCode="$VERSION_CODE" \
+            --no-daemon \
+            --stacktrace
+
+      - name: Nettoyer le keystore
+        if: always()
+        working-directory: app
+        run: rm -f gemelo-upload.p12
+
+      - name: Publier l’AAB en artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gemelo-android-aab
+          path: app/android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+          retention-days: 30
