@@ -59,7 +59,7 @@ jobs:
           test -s gemelo-upload.p12
           echo "CM_KEYSTORE_PATH=$GITHUB_WORKSPACE/app/gemelo-upload.p12" >> "$GITHUB_ENV"
 
-      - name: Compiler bundleRelease
+      - name: Compiler bundleRelease + APK
         working-directory: app/android
         env:
           CM_KEYSTORE_PATH: ${{ env.CM_KEYSTORE_PATH }}
@@ -69,7 +69,7 @@ jobs:
             VERSION_CODE="${{ github.run_number }}"
           fi
           chmod +x gradlew
-          ./gradlew bundleRelease \
+          ./gradlew bundleRelease assembleRelease \
             -PandroidVersionCode="$VERSION_CODE" \
             --no-daemon \
             --stacktrace
@@ -84,6 +84,14 @@ jobs:
         with:
           name: gemelo-android-aab
           path: app/android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publier l’APK (install direct hors Play)
+        uses: actions/upload-artifact@v4
+        with:
+          name: gemelo-android-apk
+          path: app/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 30
 
