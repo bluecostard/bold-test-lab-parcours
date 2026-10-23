@@ -65,8 +65,12 @@ export default async function handler(req, res) {
       addRandomSuffix: true,
       token: process.env.BLOB_READ_WRITE_TOKEN,
     });
+    const proxied = publicMediaUrl(blob.url) || (blob.url ? `/api/img?u=${encodeURIComponent(blob.url)}` : "");
+    if (!proxied) {
+      return res.status(500).json({ error: "URL d’image impossible à publier." });
+    }
     return res.status(200).json({
-      url: publicMediaUrl(blob.url),
+      url: proxied,
       blobUrl: blob.url,
       name: cleanName(body.name),
     });

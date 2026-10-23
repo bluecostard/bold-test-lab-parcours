@@ -127,8 +127,29 @@ function isPersistableAvatar(url) {
   const text = String(url || "").trim();
   if (!text || text.startsWith("blob:") || text.startsWith("data:")) return false;
   if (text.startsWith("/api/img?")) return true;
+  if (text.includes(".blob.vercel-storage.com")) return true;
   if (/^https?:\/\//i.test(text)) return true;
   return false;
+}
+
+/** Normalise toute sortie d’upload vers un chemin affichable durable. */
+export function normalizeAvatarUrl(url) {
+  const text = String(url || "").trim();
+  if (!isPersistableAvatar(text)) return "";
+  if (text.startsWith("/api/img?")) return text;
+  try {
+    const parsed = new URL(text, typeof window !== "undefined" ? window.location.origin : "https://gemelo.online");
+    if (parsed.pathname.startsWith("/api/img")) return `${parsed.pathname}${parsed.search}`;
+    if (parsed.hostname.endsWith(".blob.vercel-storage.com") || parsed.hostname === "blob.vercel-storage.com") {
+      return `/api/img?u=${encodeURIComponent(parsed.href)}`;
+    }
+  } catch {
+    /* ignore */
+  }
+  if (text.includes(".blob.vercel-storage.com")) {
+    return `/api/img?u=${encodeURIComponent(text)}`;
+  }
+  return text;
 }
 
 /** Photo de profil : local → métadonnée Gemelo → Clerk. */
@@ -142,8 +163,8 @@ export function readAvatar(clerkUser) {
 }
 
 export async function saveAvatar(clerkUser, url, getToken = null) {
-  const avatar = String(url || "").trim();
-  if (!isPersistableAvatar(avatar)) throw new Error("URL de photo invalide.");
+  const avatar = normalizeAvatarUrl(url);
+  if (!avatar) throw new Error("URL de photo invalide.");
   setLocalUser({ ...(readProfile().user || {}), id: clerkUser?.id || readProfile().user?.id, avatar });
 
   // Source de vérité serveur (survit au wipe WebView / Clerk).
@@ -151,7 +172,7 @@ export async function saveAvatar(clerkUser, url, getToken = null) {
     const token = await getToken();
     if (token) {
       const response = await fetch("/api/profile", {
-        method: "PUT",
+        method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -161,6 +182,11 @@ export async function saveAvatar(clerkUser, url, getToken = null) {
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.error || "Enregistrement serveur de la photo impossible.");
+      }
+      const saved = await response.json().catch(() => ({}));
+      if (typeof saved.avatar === "string" && saved.avatar.trim()) {
+        setLocalUser({ ...(readProfile().user || {}), avatar: saved.avatar.trim() });
+        return saved.avatar.trim();
       }
     }
   }

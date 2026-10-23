@@ -217,8 +217,12 @@ async function uploadMediaViaServer(getToken, file, kind) {
   if (!response.ok) {
     throw new Error(payload.error || `Envoi impossible (${response.status}).`);
   }
-  if (!payload.url) throw new Error("Envoi impossible.");
-  return { name: file.name, url: payload.url };
+  if (!payload.url && !payload.blobUrl) throw new Error("Envoi impossible.");
+  return {
+    name: file.name,
+    url: payload.url || (payload.blobUrl ? publicMediaUrl(payload.blobUrl) : ""),
+    blobUrl: payload.blobUrl || "",
+  };
 }
 
 async function uploadMediaViaBlobClient(getToken, file, type) {

@@ -3,12 +3,29 @@ import { hostedMediaUrl, publicMediaUrl } from "../lib/mediaUrl.js";
 import { readProfileRecord, saveProfileRecord } from "../lib/profileStore.js";
 import { rateLimited, rateLimitReply } from "../lib/rateLimit.js";
 
+function readBody(req) {
+  if (req.body && typeof req.body === "object") return req.body;
+  if (typeof req.body === "string") {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+/** Accepte /api/img?…, URL Blob Vercel, ou absolu gemelo.online/api/img. */
 function cleanAvatar(value) {
-  const text = typeof value === "string" ? value.trim().slice(0, 800) : "";
+  const text = typeof value === "string" ? value.trim().slice(0, 1200) : "";
   if (!text) return "";
   if (text.startsWith("/api/img?")) return text;
-  const hosted = hostedMediaUrl(text, 800);
+  const hosted = hostedMediaUrl(text, 1200);
   if (!hosted) return "";
+  if (hosted.startsWith("/api/img?")) return hosted;
+  if (hosted.includes(".blob.vercel-storage.com")) {
+    return publicMediaUrl(hosted) || `/api/img?u=${encodeURIComponent(hosted)}`;
+  }
   return publicMediaUrl(hosted) || hosted;
 }
 
@@ -37,8 +54,10 @@ export default async function handler(req, res) {
 
   if (rateLimited(req, "profile-avatar", 20, 60 * 60 * 1000, user.id)) return rateLimitReply(res);
 
-  const avatar = cleanAvatar(req.body?.avatar);
+  const body = readBody(req);
+  const avatar = cleanAvatar(body.avatar || body.url || body.blobUrl);
   if (!avatar) {
+    console.log("profile-put-reject", String(body.avatar || body.url || "").slice(0, 120));
     return res.status(400).json({ error: "URL de photo invalide." });
   }
 

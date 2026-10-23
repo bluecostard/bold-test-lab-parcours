@@ -11,7 +11,7 @@ import { forgetFile, isHostedMedia, rememberFile, uploadMedia } from "./mediaApi
 import { flagReview, getReview, likeReview, listReviews } from "./reviewsApi.js";
 import { projectsInTop10, useRanking } from "./rankingApi.js";
 import { fetchTesterProfile } from "./testerApi.js";
-import { blockAuthor, hasPaidCampaign, hydrateAvatarFromServer, isAuthorBlocked, readAvatar, readProfile, readPublicPseudo, readV2State, saveAvatar, savePublicPseudo, setLocalUser, unblockAuthor, updateLocalProfile, updateV2State, visibleReviews } from "./state.js";
+import { blockAuthor, hasPaidCampaign, hydrateAvatarFromServer, isAuthorBlocked, normalizeAvatarUrl, readAvatar, readProfile, readPublicPseudo, readV2State, saveAvatar, savePublicPseudo, setLocalUser, unblockAuthor, updateLocalProfile, updateV2State, visibleReviews } from "./state.js";
 import { ShellWithNav } from "./chrome.jsx";
 import {
   BackButton,
@@ -2016,9 +2016,11 @@ function ClerkProfile(props) {
     setAvatarUrl(preview);
     try {
       const uploaded = await uploadMedia(getToken, file, "image");
-      if (!uploaded?.url) throw new Error("Envoi de la photo impossible.");
-      await saveAvatar(user, uploaded.url, getToken);
-      setAvatarUrl(uploaded.url);
+      const rawUrl = uploaded?.url || uploaded?.blobUrl || "";
+      const avatar = normalizeAvatarUrl(rawUrl);
+      if (!avatar) throw new Error("URL de photo invalide.");
+      const saved = await saveAvatar(user, avatar, getToken);
+      setAvatarUrl(saved || avatar);
     } catch (error) {
       setAvatarUrl(readAvatar(user));
       setAvatarError(error?.message || "Envoi de la photo impossible.");
