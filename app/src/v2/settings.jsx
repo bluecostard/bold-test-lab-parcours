@@ -34,6 +34,7 @@ function exportLocalData() {
 
 const menuItems = [
   { id: "notifications", label: "Notifications" },
+  { id: "charter", label: "Charte des testeurs", screen: "charter" },
   { id: "cgv", label: "Conditions générales" },
   { id: "cgu", label: "CGU" },
   { id: "donnees", label: "Confidentialité" },
@@ -317,7 +318,13 @@ export function SettingsScreen({ back, pageRef, navigate, openDrawer }) {
         <ul className="v2-settings-links">
           {menuItems.map((item) => (
             <li key={item.id}>
-              <button type="button" onClick={() => setPage(item.id)}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (item.screen) navigate(item.screen);
+                  else setPage(item.id);
+                }}
+              >
                 {item.label}
                 <span aria-hidden="true">→</span>
               </button>

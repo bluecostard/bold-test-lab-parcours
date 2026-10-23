@@ -256,9 +256,9 @@ img.v2-avatar { object-fit: cover; padding: 0; }
 .v2-review-form > div > p { margin: 6px 0 0; color: var(--v2-muted); font-size: 16px; line-height: 1.4; }
 .v2-review-form textarea, .v2-field textarea { width: 100%; resize: vertical; line-height: 1.45; }
 .v2-count { margin: 7px 0 0; color: var(--v2-muted); font-size: 16px; text-align: right; }
-.v2-upload-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.v2-upload-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
 .v2-upload {
-  position: relative; min-width: 0; min-height: 132px; padding: 13px 8px; overflow: hidden;
+  position: relative; min-width: 0; min-height: 168px; padding: 13px 8px; overflow: hidden;
   border: 1px dashed #6685a4; border-radius: 14px; background: #10243a;
   display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; cursor: pointer; text-align: center;
 }
@@ -377,6 +377,9 @@ button.v2-avis-frame {
 }
 .v2-avis-login { display: grid; grid-template-columns: 40px minmax(0, 1fr) max-content; gap: 8px; align-items: center; }
 .v2-avis-login .v2-avis-fallback { width: 40px; height: 40px; background: #1a334d; }
+.v2-avis-login-avatar {
+  width: 40px; height: 40px; border-radius: 50%; object-fit: cover; display: block;
+}
 .v2-avis-login-field {
   min-width: 0; min-height: 48px; margin: 0; padding: 12px 14px;
   border: 1px solid var(--v2-line); border-radius: 999px; background: #0a1d31;
@@ -760,6 +763,9 @@ button.v2-avis-frame {
 }
 
 .v2-age h1 { margin-bottom: 8px; }
+.v2-charter h1 { margin-bottom: 8px; }
+.v2-charter .v2-consent { font-weight: 700; font-size: 16px; line-height: 1.35; }
+.v2-charter-reminder { margin-top: 0; }
 .v2-consent {
   display: flex; align-items: flex-start; gap: 12px;
   min-height: 48px; margin: 8px 0 4px;
@@ -876,8 +882,7 @@ button.v2-avis-frame {
   width: 48px; height: 48px; border: 0; background: transparent; color: #5d738c; font-size: 32px; line-height: 1; cursor: pointer;
 }
 .v2-stars button.is-on { color: var(--v2-accent); }
-.v2-upload-grid--wide, .v2-upload-grid--3 { display: grid; gap: 10px; margin-top: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.v2-upload img { max-width: 100%; max-height: 86px; object-fit: contain; }
+.v2-upload-grid--wide, .v2-upload-grid--3 { display: grid; gap: 12px; margin-top: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .v2-upload.is-dashed { border-style: dashed; }
 .v2-check-status { margin: 12px 0 0; padding: 0; list-style: none; }
 .v2-check-status li { min-height: 52px; display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; }
@@ -889,11 +894,30 @@ button.v2-avis-frame {
 .v2-community-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 
 .v2-upload--preview {
-  position: relative; overflow: hidden; padding: 0; cursor: default; background: #10243a;
+  position: relative; align-self: stretch; min-height: 240px; aspect-ratio: 9 / 16;
+  overflow: hidden; padding: 0; border-style: solid; border-color: #1d2c3b; cursor: default; background: #0a1d31;
 }
-.v2-upload--preview img { width: 100%; height: 100%; max-height: none; object-fit: cover; }
+.v2-upload--preview img,
+.v2-upload--preview video {
+  display: block; width: 100%; height: 100%; max-height: none; object-fit: cover; object-position: top; background: #0a1d31;
+}
+.v2-upload--preview .v2-phone-frame {
+  position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; border-width: 0; border-radius: 0; box-shadow: none;
+}
+.v2-upload-replace {
+  position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 2;
+  min-height: 44px; display: grid; place-items: center; padding: 8px 10px;
+  border-radius: 999px; background: rgba(7, 20, 38, .9); color: var(--v2-accent);
+  font-size: 16px; font-weight: 800; cursor: pointer;
+}
+.v2-upload-replace input { position: fixed; left: -9999px; }
+.v2-upload-zoom {
+  position: absolute; right: 8px; bottom: 8px; z-index: 2;
+  width: 40px; height: 40px; display: grid; place-items: center;
+  border-radius: 50%; background: rgba(7, 20, 38, .88); color: #fff; font-size: 18px; pointer-events: none;
+}
 .v2-upload-remove {
-  position: absolute; top: 6px; right: 6px; width: 44px; height: 44px; border: 0; border-radius: 50%;
+  position: absolute; top: 6px; right: 6px; z-index: 2; width: 44px; height: 44px; border: 0; border-radius: 50%;
   background: #0b1a2b; color: #fff; font-size: 22px; line-height: 1; cursor: pointer;
 }
 .v2-page-title { display: flex; align-items: flex-start; gap: 8px; }

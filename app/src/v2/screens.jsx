@@ -28,6 +28,7 @@ import {
   Tags,
 } from "./primitives.jsx";
 import { CampaignSocialList } from "./socialIcons.jsx";
+import { TestReserveReminder, useReservedAccess } from "./charter.jsx";
 
 function scrollRailTo(rail, index) {
   if (!rail) return;
@@ -375,7 +376,16 @@ function FeaturedCampaignCard({ campaign, navigate }) {
   );
 }
 
-export function DiscoverScreen({ navigate, pageRef, openDrawer }) {
+export function DiscoverScreen(props) {
+  return clerkKey ? <DiscoverScreenAuthed {...props} /> : <DiscoverScreenBody {...props} user={null} />;
+}
+
+function DiscoverScreenAuthed(props) {
+  const { user } = useUser();
+  return <DiscoverScreenBody {...props} user={user} />;
+}
+
+function DiscoverScreenBody({ navigate, pageRef, openDrawer, user }) {
   const catalog = useCampaignCatalog();
   const seedIds = new Set(campaigns.map((item) => item.id));
   const apiCampaigns = catalog.filter((item) => !seedIds.has(item.id) && item.live !== false);
@@ -397,6 +407,13 @@ export function DiscoverScreen({ navigate, pageRef, openDrawer }) {
     listReviews(reviewSource.id).then(setLiveReviews).catch(() => setLiveReviews([]));
   }, [reviewSource?.id]);
   const reviews = visibleReviews(liveReviews).slice(0, 5);
+  const profile = readProfile();
+  function reviewAvatar(review) {
+    if (review.photo) return review.photo;
+    if (user?.id && review.authorId === user.id && user.imageUrl) return user.imageUrl;
+    if (user?.id && review.authorId === user.id && profile.avatar) return profile.avatar;
+    return "/icon-app.png";
+  }
   return (
     <ShellWithNav active="discover" navigate={navigate} pageRef={pageRef} openDrawer={openDrawer}>
       <main className="v2-stack">
@@ -445,7 +462,7 @@ export function DiscoverScreen({ navigate, pageRef, openDrawer }) {
                 return (
                   <li key={review.id}>
                     <button type="button" onClick={() => navigate("review-published", { campaignId: reviewSource.id, reportId: review.id })}>
-                      <img className="v2-avatar" src={review.photo || "/icon-app.png"} alt={review.author || "Testeur"} />
+                      <img className="v2-avatar" src={reviewAvatar(review)} alt={review.author || "Testeur"} />
                       <p><strong>{review.author} · {reviewSource.name}</strong><q>{review.text}</q></p>
                       <span aria-label={`${likes} mentions J’aime`}>♥ {likes}</span>
                     </button>
@@ -460,10 +477,21 @@ export function DiscoverScreen({ navigate, pageRef, openDrawer }) {
   );
 }
 
-export function CampaignScreen({ campaign, navigate, back, pageRef, interceptBack, openDrawer }) {
+export function CampaignScreen(props) {
+  return clerkKey ? <CampaignScreenAuthed {...props} /> : <CampaignScreenBody {...props} access={{ loading: false, signed: true, requestAccess: () => true }} />;
+}
+
+function CampaignScreenAuthed(props) {
+  const access = useReservedAccess({ navigate: props.navigate, campaignId: props.campaign.id, from: "campaign" });
+  return <CampaignScreenBody {...props} access={access} />;
+}
+
+function CampaignScreenBody({ campaign, navigate, back, pageRef, interceptBack, openDrawer, access }) {
   const deadline = useCampaignDeadline(campaign);
   const gallery = useScreenshotGallery(interceptBack);
   const [pitchOpen, setPitchOpen] = useState(false);
+  const [shared, setShared] = useState(false);
+
   useEffect(() => {
     if (!interceptBack || !pitchOpen) return undefined;
     interceptBack.current = () => {
@@ -474,6 +502,24 @@ export function CampaignScreen({ campaign, navigate, back, pageRef, interceptBac
       interceptBack.current = null;
     };
   }, [interceptBack, pitchOpen]);
+
+  function openReserved(nextScreen) {
+    if (!access.requestAccess(nextScreen || "campaign")) return;
+    if (nextScreen) navigate(nextScreen, { campaignId: campaign.id });
+  }
+
+  async function shareCampaign() {
+    const link = `${window.location.origin}/?ecran=campaign&campagne=${encodeURIComponent(campaign.id)}`;
+    const text = `Tu veux découvrir ${campaign.name} et donner ton avis ? Voici la campagne sur Gemelo : ${link}`;
+    try {
+      if (navigator.share) await navigator.share({ title: `${campaign.name} sur Gemelo`, text, url: link });
+      else if (navigator.clipboard) await navigator.clipboard.writeText(text);
+      setShared(true);
+    } catch {
+      /* annulation utilisateur */
+    }
+  }
+
   if (pitchOpen && campaign.founderPitch) {
     return (
       <PageShell pageRef={pageRef}>
@@ -515,13 +561,52 @@ export function CampaignScreen({ campaign, navigate, back, pageRef, interceptBac
             </button>
           </Card>
         ) : null}
-        {campaign.productLinks ? <Card><SectionTitle icon="↗" title="Accéder au produit" description={`Ouvrez ${campaign.name} sur la plateforme de votre choix.`} /><ul className="v2-link-list">{campaign.productLinks.map((link) => <li key={link.label}><a href={link.href} target="_blank" rel="noreferrer"><span className="v2-link-icon" aria-hidden="true">{link.icon}</span><span><strong>{link.label}</strong><small>{link.detail}</small></span><span aria-hidden="true">↗</span></a></li>)}</ul></Card> : null}
+        {campaign.productLinks ? (
+          <Card>
+            <SectionTitle icon="↗" title="Accéder au produit" description={`Ouvrez ${campaign.name} sur la plateforme de votre choix.`} />
+            {access.signed ? (
+              <>
+                <TestReserveReminder />
+                <ul className="v2-link-list">
+                  {campaign.productLinks.map((link) => (
+                    <li key={link.label}>
+                      <a href={link.href} target="_blank" rel="noreferrer">
+                        <span className="v2-link-icon" aria-hidden="true">{link.icon}</span>
+                        <span><strong>{link.label}</strong><small>{link.detail}</small></span>
+                        <span aria-hidden="true">↗</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <>
+                <p className="v2-info">Les liens de test sont réservés aux testeurs ayant signé la charte.</p>
+                <Button type="button" onClick={() => openReserved(null)}>
+                  {access.loading ? "Vérification…" : "Signer pour accéder aux tests"} <span aria-hidden="true">→</span>
+                </Button>
+              </>
+            )}
+          </Card>
+        ) : null}
         <Card>
           <SectionTitle icon="⌘" title="Réseaux de l’entrepreneur" description={`Suivez ${campaign.name} sur ses réseaux pour rester informé.`} />
           <CampaignSocialList socials={campaign.socials} name={campaign.name} />
         </Card>
         <CampaignInstructions campaign={campaign} />
-        <Card><SectionTitle icon="●" title="Votre retour" description="Une fois votre test réalisé, partagez votre avis." /><Button type="button" onClick={() => navigate("review", { campaignId: campaign.id })}>Donner mon avis <span aria-hidden="true">→</span></Button><p className="v2-helper">Votre brouillon reste sur cet appareil.</p></Card>
+        {access.signed ? <TestReserveReminder /> : null}
+        <Card>
+          <SectionTitle icon="●" title="Votre retour" description="Une fois votre test réalisé, partagez votre avis." />
+          <Button type="button" onClick={() => openReserved("review")}>
+            Donner mon avis <span aria-hidden="true">→</span>
+          </Button>
+          <p className="v2-helper">Votre brouillon reste sur cet appareil.</p>
+        </Card>
+        <Card>
+          <SectionTitle icon="↗" title="Partager la campagne" description="Invitation publique, sans accès de test." />
+          <Button type="button" variant="outline" onClick={shareCampaign}>Partager <span aria-hidden="true">→</span></Button>
+          {shared ? <p role="status" className="v2-helper">Lien copié ou partagé.</p> : null}
+        </Card>
       </main>
     </PageShell>
   );
@@ -597,22 +682,34 @@ function persistablePhotos(photos) {
 }
 
 export function ReviewFormScreen(props) {
-  return clerkKey ? <ReviewFormAuthed {...props} /> : <ReviewFormBody {...props} getToken={null} />;
+  return clerkKey ? <ReviewFormAuthed {...props} /> : <ReviewFormBody {...props} getToken={null} access={{ loading: false, signed: true, requestAccess: () => true }} />;
 }
 
 function ReviewFormAuthed(props) {
   const { getToken } = useAuth();
-  return <ReviewFormBody {...props} getToken={getToken} />;
+  const access = useReservedAccess({ navigate: props.navigate, campaignId: props.campaign.id, from: "review" });
+  return <ReviewFormBody {...props} getToken={getToken} access={access} />;
 }
 
-function ReviewFormBody({ campaign, navigate, pageRef, openDrawer, getToken }) {
+function ReviewFormBody({ campaign, navigate, pageRef, openDrawer, getToken, access }) {
+  const gated = useRef(false);
   const saved = readV2State().reviewDrafts[campaign.id] || {};
   const [text, setText] = useState(saved.text || "");
   const [photos, setPhotos] = useState(() => photosFromDraft(saved));
   const [videoName, setVideoName] = useState(saved.videoName || "");
-  const [videoUrl, setVideoUrl] = useState(isHostedMedia(saved.videoUrl) ? saved.videoUrl : "");
+  const [videoUrl, setVideoUrl] = useState(
+    saved.videoUrl && (isHostedMedia(saved.videoUrl) || String(saved.videoUrl).startsWith("blob:")) ? saved.videoUrl : "",
+  );
   const [videoBusy, setVideoBusy] = useState(false);
   const [error, setError] = useState("");
+  const hasVideo = Boolean(videoUrl || videoName);
+
+  useEffect(() => {
+    if (access.loading || access.signed || gated.current) return;
+    gated.current = true;
+    access.requestAccess("review");
+  }, [access]);
+
   useEffect(() => {
     const hosted = persistablePhotos(photos);
     updateV2State((state) => ({
@@ -654,12 +751,16 @@ function ReviewFormBody({ campaign, navigate, pageRef, openDrawer, getToken }) {
     if (!file) return;
     const key = `video-${file.size}-${Date.now()}`;
     rememberFile(key, file);
+    if (videoUrl?.startsWith("blob:")) URL.revokeObjectURL(videoUrl);
+    const preview = URL.createObjectURL(file);
     setVideoName(file.name);
+    setVideoUrl(preview);
     setVideoBusy(true);
     setError("");
     try {
       const uploaded = await uploadMedia(getToken, file, "video");
       forgetFile(key);
+      URL.revokeObjectURL(preview);
       setVideoName(uploaded.name);
       setVideoUrl(uploaded.url);
     } catch (uploadError) {
@@ -667,6 +768,12 @@ function ReviewFormBody({ campaign, navigate, pageRef, openDrawer, getToken }) {
     } finally {
       setVideoBusy(false);
     }
+  }
+  function clearVideo() {
+    if (videoUrl?.startsWith("blob:")) URL.revokeObjectURL(videoUrl);
+    setVideoName("");
+    setVideoUrl("");
+    setVideoBusy(false);
   }
   function continueReview(event) {
     event.preventDefault();
@@ -688,22 +795,41 @@ function ReviewFormBody({ campaign, navigate, pageRef, openDrawer, getToken }) {
           </div>
         </div>
         <Tags items={campaign.tags} />
-        <Card><Field label="Votre expérience" error={error}><textarea rows={7} maxLength={10000} value={text} onChange={(event) => setText(event.target.value)} placeholder="Ce qui fonctionne, ce qui bloque, votre suggestion…" aria-describedby="review-count" /></Field><p id="review-count" className="v2-count">{text.length} / 10000</p></Card>
+        <TestReserveReminder />
+        {!access.signed && !access.loading ? (
+          <p className="v2-info" role="status">La rédaction d’avis est réservée aux testeurs ayant signé la charte.</p>
+        ) : null}
+        <Card><Field label="Votre expérience" error={error}><textarea rows={7} maxLength={10000} value={text} onChange={(event) => setText(event.target.value)} placeholder="Ce qui fonctionne, ce qui bloque, votre suggestion…" aria-describedby="review-count" disabled={!access.signed} /></Field><p id="review-count" className="v2-count">{text.length} / 10000</p></Card>
         <Card>
           <SectionTitle title="Ajouter des preuves" description="Ajoutez des captures d’écran et/ou une vidéo pour rendre votre avis plus utile et crédible." />
           <div className="v2-upload-grid">
             {photos.map((photo, index) => (
               <div key={`${photo.name}-${index}`} className="v2-upload v2-upload--preview">
-                <img src={photo.url} alt="" />
-                <button type="button" className="v2-upload-remove" aria-label={`Retirer ${photo.name}`} onClick={() => { forgetFile(photo.key); setPhotos((current) => current.filter((_, photoIndex) => photoIndex !== index)); }}>×</button>
+                <img src={photo.url} alt={`Capture ${index + 1}`} />
+                <button type="button" className="v2-upload-remove" aria-label={`Retirer ${photo.name}`} onClick={() => { forgetFile(photo.key); if (photo.url?.startsWith("blob:")) URL.revokeObjectURL(photo.url); setPhotos((current) => current.filter((_, photoIndex) => photoIndex !== index)); }}>×</button>
               </div>
             ))}
-            <label className="v2-upload"><span aria-hidden="true">▣</span><strong>Capture d’écran</strong><small>JPG, PNG jusqu’à 10 Mo</small><input type="file" accept="image/*" multiple onChange={addPhotos} /></label>
-            <label className="v2-upload"><span aria-hidden="true">▶</span><strong>Vidéo</strong><small>{videoBusy ? "Envoi…" : videoName || "MP4, MOV jusqu’à 100 Mo"}</small><input type="file" accept="video/*" onChange={addVideo} /></label>
+            <label className="v2-upload"><span aria-hidden="true">▣</span><strong>Capture d’écran</strong><small>JPG, PNG jusqu’à 10 Mo</small><input type="file" accept="image/*" multiple onChange={addPhotos} disabled={!access.signed} /></label>
+            {hasVideo ? (
+              <div className="v2-upload v2-upload--preview">
+                {videoUrl ? (
+                  <video src={videoUrl} muted playsInline preload="metadata" aria-label={videoName || "Vidéo jointe"} />
+                ) : (
+                  <span aria-hidden="true">▶</span>
+                )}
+                <button type="button" className="v2-upload-remove" aria-label="Retirer la vidéo" onClick={clearVideo}>×</button>
+                <label className="v2-upload-replace">
+                  <span>{videoBusy ? "Envoi…" : "Modifier"}</span>
+                  <input type="file" accept="video/*" onChange={addVideo} disabled={!access.signed || videoBusy} />
+                </label>
+              </div>
+            ) : (
+              <label className="v2-upload"><span aria-hidden="true">▶</span><strong>Vidéo</strong><small>MP4, MOV jusqu’à 100 Mo</small><input type="file" accept="video/*" onChange={addVideo} disabled={!access.signed} /></label>
+            )}
           </div>
           <p className="v2-info">Masquez vos informations personnelles avant de publier. Ne partagez pas votre nom, e-mail, numéro de téléphone ou toute information sensible.</p>
         </Card>
-        <Button type="submit">Publier mon avis <span aria-hidden="true">→</span></Button>
+        <Button type="submit" disabled={!access.signed}>Publier mon avis <span aria-hidden="true">→</span></Button>
         <p className="v2-helper">Votre avis sera visible par la communauté.</p>
       </form>
     </PageShell>
@@ -798,11 +924,11 @@ export function PublishedReviewScreen(props) {
 
 function PublishedReviewAuthed(props) {
   const { getToken } = useAuth();
-  const { user } = useUser();
-  return <PublishedReviewBody {...props} getToken={getToken} user={user} />;
+  const { user, isSignedIn, isLoaded } = useUser();
+  return <PublishedReviewBody {...props} getToken={getToken} user={user} signedIn={Boolean(isLoaded && isSignedIn)} />;
 }
 
-function PublishedReviewBody({ campaign, reportId, navigate, back, pageRef, openDrawer, getToken, user }) {
+function PublishedReviewBody({ campaign, reportId, navigate, back, pageRef, openDrawer, getToken, user, signedIn = false }) {
   const [savedState, setSavedState] = useState(readV2State);
   const [shared, setShared] = useState(false);
   const [bannerOpen, setBannerOpen] = useState(true);
@@ -842,8 +968,11 @@ function PublishedReviewBody({ campaign, reportId, navigate, back, pageRef, open
   const liked = Boolean(review.id && savedState.likedReviewIds.includes(review.id));
   const likes = (live?.likes ?? own.likes ?? 0) + (liked && !live ? 1 : 0);
   const profile = readProfile();
-  const authorName = live?.author || profile.name || "Vous";
-  const authorPhoto = live?.photo || profile.avatar;
+  const authorName = live?.author || readPublicPseudo(user) || profile.name || "Vous";
+  const authorPhoto = live?.photo
+    || (live?.authorId && user?.id === live.authorId ? (user.imageUrl || profile.avatar) : "")
+    || (isOwn ? (user?.imageUrl || profile.avatar) : "")
+    || profile.avatar;
   const authorSince = "Testeur depuis aujourd’hui";
   const publishedDate = formatReviewDate(live?.publishedAt || own.publishedAt);
   const title = live?.title || "Mon retour d’expérience";
@@ -883,11 +1012,18 @@ function PublishedReviewBody({ campaign, reportId, navigate, back, pageRef, open
     }
   }
   async function share() {
-    const message = isOwn ? `Mon avis sur ${campaignName}` : `Avis de ${authorName} sur ${campaignName}`;
-    const copy = `${message}\n${body}`;
-    if (navigator.share) await navigator.share({ title: message, text: body });
-    else if (navigator.clipboard) await navigator.clipboard.writeText(copy);
-    setShared(true);
+    const reviewId = live?.id || reportId || review.id;
+    const link = reviewId
+      ? `${window.location.origin}/?ecran=review-published&campagne=${encodeURIComponent(campaign.id)}&avis=${encodeURIComponent(reviewId)}`
+      : `${window.location.origin}/?ecran=campaign&campagne=${encodeURIComponent(campaign.id)}`;
+    const text = `Un retour intéressant sur ${campaignName}. Et toi, qu’en penses-tu ? ${link}`;
+    try {
+      if (navigator.share) await navigator.share({ title: `Retour sur ${campaignName}`, text, url: link });
+      else if (navigator.clipboard) await navigator.clipboard.writeText(text);
+      setShared(true);
+    } catch {
+      /* annulation utilisateur */
+    }
   }
   if (!isOwn && blocked && live?.authorId) {
     return (
@@ -1095,11 +1231,25 @@ function PublishedReviewBody({ campaign, reportId, navigate, back, pageRef, open
               Répondre à la question <span aria-hidden="true">→</span>
             </Button>
           ) : null}
-          <div className="v2-avis-login">
-            <span className="v2-avis-fallback" aria-hidden="true" />
-            <p className="v2-avis-login-field">Connectez-vous pour répondre à cet…</p>
-            <Button type="button" onClick={() => navigate("login", { campaignId: campaign.id, from: "review-published" })}>Se connecter</Button>
-          </div>
+          {signedIn || user ? (
+            <div className="v2-avis-login" aria-label="Répondre à cet avis">
+              {user?.imageUrl || profile.avatar ? (
+                <img className="v2-avis-login-avatar" src={user?.imageUrl || profile.avatar} alt="" />
+              ) : (
+                <span className="v2-avis-fallback" aria-hidden="true">{(readPublicPseudo(user) || profile.name || "?").charAt(0)}</span>
+              )}
+              <p className="v2-avis-login-field">Écrire une réponse…</p>
+              <Button type="button" disabled title="Les réponses de la communauté seront bientôt disponibles">
+                Envoyer
+              </Button>
+            </div>
+          ) : (
+            <div className="v2-avis-login">
+              <span className="v2-avis-fallback" aria-hidden="true" />
+              <p className="v2-avis-login-field">Connectez-vous pour répondre à cet avis…</p>
+              <Button type="button" onClick={() => navigate("login", { campaignId: campaign.id, from: "review-published" })}>Se connecter</Button>
+            </div>
+          )}
         </section>
         {bannerOpen ? (
           <aside className="v2-avis-banner">
@@ -1364,6 +1514,32 @@ function RankingBody({ navigate, pageRef, openDrawer, getToken }) {
   );
 }
 
+function TesterProfileShare({ tester, projectId, projectLabel }) {
+  const [shared, setShared] = useState(false);
+  async function share() {
+    const params = new URLSearchParams({ ecran: "tester-profile" });
+    if (tester.authorId) params.set("auteur", tester.authorId);
+    else if (tester.name) params.set("nom", tester.name);
+    if (projectId) params.set("projet", projectId);
+    const link = `${window.location.origin}/?${params.toString()}`;
+    const projectBit = projectLabel ? ` Découvre aussi mon projet : ${link}` : ` ${link}`;
+    const text = `Je contribue aux tests sur Gemelo.${projectBit}`;
+    try {
+      if (navigator.share) await navigator.share({ title: `${tester.name} sur Gemelo`, text, url: link });
+      else if (navigator.clipboard) await navigator.clipboard.writeText(text);
+      setShared(true);
+    } catch {
+      /* annulation */
+    }
+  }
+  return (
+    <>
+      <button type="button" className="v2-text-button" onClick={share}>Partager mon profil</button>
+      {shared ? <p role="status" className="v2-helper">Lien copié ou partagé.</p> : null}
+    </>
+  );
+}
+
 export function TesterPublicScreen({ authorId, authorName, projectId, navigate, back, pageRef, openDrawer }) {
   const [profile, setProfile] = useState(undefined);
   useEffect(() => {
@@ -1416,6 +1592,7 @@ export function TesterPublicScreen({ authorId, authorName, projectId, navigate, 
                     Projet · {projectLabel}
                   </button>
                 ) : null}
+                <TesterProfileShare tester={tester} projectId={resolvedProjectId} projectLabel={projectLabel} />
               </div>
             </header>
             <section>
@@ -2023,6 +2200,17 @@ function requestWelcome(getToken, user) {
     .catch(() => {});
 }
 
+function goAfterLogin(navigate, from, campaignId) {
+  if (from === "report-check") navigate("report-check", { campaignId }, true);
+  else if (from === "report-form") navigate("report-check", { campaignId }, true);
+  else if (from === "review-published") navigate("review-published", { campaignId }, true);
+  else if (from === "review") navigate("charter", { campaignId, from: "review" }, true);
+  else if (from === "charter" || from === "campaign") navigate("charter", { campaignId, from: from === "campaign" ? "campaign" : "charter" }, true);
+  else if (from === "payment") navigate("payment", {}, true);
+  else if (from === "messages") navigate("messages", {}, true);
+  else navigate("profile", {}, true);
+}
+
 function ClerkLogin({ navigate, pageRef, from, campaignId }) {
   const { isSignedIn, user } = useUser();
   const { getToken } = useAuth();
@@ -2053,22 +2241,12 @@ function ClerkLogin({ navigate, pageRef, from, campaignId }) {
       return;
     }
     requestWelcome(getToken, user);
-    if (from === "report-check") navigate("report-check", { campaignId }, true);
-    else if (from === "report-form") navigate("report-check", { campaignId }, true);
-    else if (from === "review-published") navigate("review-published", { campaignId }, true);
-    else if (from === "payment") navigate("payment", {}, true);
-    else if (from === "messages") navigate("messages", {}, true);
-    else navigate("profile", {}, true);
+    goAfterLogin(navigate, from, campaignId);
   }, [campaignId, from, getToken, isSignedIn, navigate, user]);
   function afterPseudo() {
     requestWelcome(getToken, user);
     setNeedPseudo(false);
-    if (from === "report-check") navigate("report-check", { campaignId }, true);
-    else if (from === "report-form") navigate("report-check", { campaignId }, true);
-    else if (from === "review-published") navigate("review-published", { campaignId }, true);
-    else if (from === "payment") navigate("payment", {}, true);
-    else if (from === "messages") navigate("messages", {}, true);
-    else navigate("profile", {}, true);
+    goAfterLogin(navigate, from, campaignId);
   }
   return (
     <LoginShell pageRef={pageRef}>

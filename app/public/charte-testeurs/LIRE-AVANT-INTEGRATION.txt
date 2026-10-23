@@ -1,0 +1,58 @@
+GEMELO — PARTAGE WHATSAPP ET ENGAGEMENT DES TESTEURS
+23 octobre 2026
+
+CONTENU DU DOSSIER
+Trois cartes carrées, une charte en PDF, sa version Word modifiable et cette note.
+Les cartes sont des exemples de présentation, pas l’annonce de campagnes ou de résultats réels. Le retour est illustratif. Alex, son classement et ses points sont fictifs. Remplacer ces données par les données autorisées de l’utilisateur avant génération d’une carte réelle. Le logo provient de l’icône Gemelo fournie précédemment.
+
+ENVOI SUR WHATSAPP
+Envoyer une image avec un texte et le lien réel de la fiche correspondante. Le bouton dessiné dans l’image n’est pas cliquable. L’export des cartes et le partage natif avec pièce jointe devront être développés dans Gemelo ; ces fichiers n’installent aucune fonctionnalité.
+
+Message de campagne
+« Tu veux découvrir BedHop et donner ton avis ? Voici la campagne sur Gemelo : [lien public réel de la campagne] »
+
+Message de retour
+« Un retour intéressant sur BedHop. Et toi, qu’en penses-tu ? [lien public réel du retour autorisé] »
+
+Message de profil
+« Je contribue aux tests sur Gemelo. Découvre aussi mon projet : [lien public réel du projet ou profil] »
+
+Les crochets sont des champs à remplacer. Ne pas diffuser ces messages avec un lien fictif. Utiliser gemelo.online uniquement pour une invitation générale, sans prétendre qu’il mène à une campagne précise.
+
+RÈGLES DE PARTAGE À PRÉVOIR
+1. Campagne : titre, promesse, image promotionnelle approuvée, lien public. Aucun accès de test ni jeton d’invitation dans un lien partagé.
+2. Retour : publication uniquement si le projet et le contenu sont autorisés à la diffusion publique et si l’auteur a autorisé l’utilisation de sa contribution. Masquer les données personnelles. Un avis négatif peut être partagé dans les mêmes conditions qu’un avis positif.
+3. Profil : photo choisie par l’utilisateur, nom du projet, points et classement datés au moment de la génération. Éviter une position ancienne présentée comme actuelle.
+4. Campagne terminée : conserver une page informative qui indique son statut ; ne pas laisser croire qu’on peut encore la tester.
+5. Aperçus de liens WhatsApp : ne servir que les métadonnées publiques autorisées. Les captures privées ne doivent pas se retrouver dans les balises d’aperçu ou une URL d’image publique. Générer un aperçu générique pour un contenu réservé.
+6. Le partage est déclenché volontairement par l’utilisateur. Aucun envoi automatique à ses contacts.
+
+AVANT D’UTILISER LA CHARTE
+Compléter l’identité juridique réelle de l’exploitant, son adresse, son immatriculation, son représentant et le contact confidentialité/incidents. Identifier chaque créateur dans la fiche de campagne. Choisir les règles de visibilité et renseigner explicitement les médias partageables.
+Faire vérifier le document avec les CGU, les conditions des créateurs et le fonctionnement réel du service par un professionnel du droit avant déploiement. La protection dépend du contenu, des droits détenus et des preuves ; aucune charte ne garantit à elle seule l’absence de fuite.
+La charte organise l’obligation de secret des testeurs. Elle ne remplace ni les CGU, ni la politique de protection des données personnelles de Gemelo, ni une autorisation distincte de réutilisation des contributions.
+
+PARCOURS OBLIGATOIRE À INTÉGRER
+1. Compte identifié et adresse électronique vérifiée.
+2. Présentation du texte intégral téléchargeable et de la notice de protection des données.
+3. Case non précochée : « J’ai lu et j’accepte la charte de confidentialité et de non-divulgation des testeurs Gemelo, version 1.0. »
+4. Action « Signer et accéder aux tests », avec un service de signature électronique adapté au risque et au besoin de preuve. Un code à usage unique peut contribuer à l’identification ; il ne confère pas à lui seul un niveau de signature qualifiée. Ne pas présenter une simple case cochée ou une image de signature comme une garantie juridique équivalente à tous les procédés de signature électronique.
+5. Conserver le document exact signé, sa version, son intégrité, l’identité liée au compte, la date, le résultat de signature et le dossier de preuve. Remettre une copie au testeur. Séparer les preuves du contenu modifiable des campagnes.
+6. Avant chaque campagne : présenter le créateur bénéficiaire, le périmètre du test, les règles de visibilité et l’annexe ; enregistrer la confirmation liée à cette version précise. En cas de durcissement contractuel, obtenir un nouvel accord exprès avant de nouveaux accès.
+7. Contrôler côté serveur l’existence de la signature et de la confirmation de campagne avant toute remise d’accès, tout téléchargement réservé ou accès aux médias privés. Une simple désactivation visuelle du bouton ne suffit pas.
+8. Refus de signer : consultation des informations publiques possible, accès aux tests réservés bloqué. Prévoir une reprise du parcours de signature.
+9. Afficher un rappel dans chaque test : « Retours et médias réservés à l’espace autorisé. Seuls les éléments marqués partageables peuvent être diffusés. »
+
+PREUVES ET DONNÉES PERSONNELLES
+Limiter la collecte aux données nécessaires. Éviter la copie systématique de pièces d’identité. Définir et documenter les bases légales, destinataires, accès, éventuels transferts et durées de conservation avant lancement. Ne pas conserver indéfiniment une adresse IP ou l’ensemble des journaux au motif de la signature. Les preuves contractuelles peuvent nécessiter un archivage restreint distinct des données actives ; le calendrier doit être validé pour le contexte exact de Gemelo. Le consentement marketing reste distinct et facultatif.
+
+RÉFÉRENCES CONSULTÉES
+Code civil, articles 1366 et 1367 — écrit et signature électroniques.
+Service Public — Faut-il conserver l’original papier ou électronique d’un document ?
+https://www.service-public.gouv.fr/particuliers/vosdroits/F31215
+Code de commerce, articles L151-1 à L151-9 — secret des affaires et exceptions.
+https://www.legifrance.gouv.fr/codes/section_lc/LEGITEXT000005634379/LEGISCTA000037266547/
+CNIL — Les durées de conservation des données.
+https://www.cnil.fr/fr/passer-laction/les-durees-de-conservation-des-donnees
+CNIL — Minimiser les données collectées.
+https://www.cnil.fr/fr/minimiser-les-donnees-collectees

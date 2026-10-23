@@ -1,6 +1,7 @@
 import { useAuth, useUser } from "@clerk/react";
 import { useEffect, useState } from "react";
 import { BackButton, Button, Card, Field, FlowHeader, PageShell, ProjectIdentity, SectionTitle, Tags } from "./primitives.jsx";
+import { TestReserveReminder } from "./charter.jsx";
 import { forgetFile, hostPending, isHostedMedia, rememberFile, uploadMedia } from "./mediaApi.js";
 import { publishReview } from "./reviewsApi.js";
 import { readProfile, readPublicPseudo, readV2State, updateV2State } from "./state.js";
@@ -103,6 +104,7 @@ function ReportFormBody({ campaign, navigate, back, pageRef, signedIn, openDrawe
       <FlowHeader navigate={navigate} openDrawer={openDrawer} />
       <main className="v2-stack v2-form-wide">
         <BackButton onClick={back} />
+        <TestReserveReminder />
         <Card>
           <SectionTitle icon="◎" title="Bug rencontré ?" description="Avez-vous rencontré un bug ou un comportement anormal pendant votre test ?" />
           <fieldset className="v2-choice"><legend className="v2-sr">Bug rencontré</legend>{["Oui", "Non"].map((option) => <label key={option}><input type="radio" name="bug" checked={hadBug === option} onChange={() => setHadBug(option)} /> {option}</label>)}</fieldset>
@@ -180,11 +182,15 @@ function ReportCheckBody({ campaign, navigate, back, pageRef, signedIn, openDraw
   const [observedFill, setObservedFill] = useState(report.observed || splitExpected(report.expectedObserved || "").observed);
   const [reproFill, setReproFill] = useState(report.repro || "");
   const [screenFill, setScreenFill] = useState(report.screen || "");
+  const draftVideo = report.videoUrl || review.videoUrl || "";
   const [videoName, setVideoName] = useState(report.videoName || review.videoName || "");
-  const [videoUrl, setVideoUrl] = useState(isHostedMedia(report.videoUrl || review.videoUrl) ? (report.videoUrl || review.videoUrl) : "");
+  const [videoUrl, setVideoUrl] = useState(
+    draftVideo && (isHostedMedia(draftVideo) || String(draftVideo).startsWith("blob:")) ? draftVideo : "",
+  );
   const [videoBusy, setVideoBusy] = useState(false);
   const photos = proofPhotos(review);
   const [photoIndex, setPhotoIndex] = useState(0);
+  const hasVideo = Boolean(videoUrl || videoName);
   const noBug = report.hadBug === "Non";
   const items = noBug
     ? [
@@ -219,12 +225,16 @@ function ReportCheckBody({ campaign, navigate, back, pageRef, signedIn, openDraw
     if (!file) return;
     const key = `video-${file.size}-${Date.now()}`;
     rememberFile(key, file);
+    if (videoUrl?.startsWith("blob:")) URL.revokeObjectURL(videoUrl);
+    const preview = URL.createObjectURL(file);
     setVideoName(file.name);
+    setVideoUrl(preview);
     setVideoBusy(true);
     persist({ videoName: file.name, videoKey: key });
     try {
       const uploaded = await uploadMedia(getToken, file, "video");
       forgetFile(key);
+      URL.revokeObjectURL(preview);
       setVideoName(uploaded.name);
       setVideoUrl(uploaded.url);
       persist({ videoName: uploaded.name, videoUrl: uploaded.url, videoKey: "" });
@@ -233,6 +243,14 @@ function ReportCheckBody({ campaign, navigate, back, pageRef, signedIn, openDraw
     } finally {
       setVideoBusy(false);
     }
+  }
+
+  function clearVideo() {
+    if (videoUrl?.startsWith("blob:")) URL.revokeObjectURL(videoUrl);
+    setVideoName("");
+    setVideoUrl("");
+    setVideoBusy(false);
+    persist({ videoName: "", videoUrl: "", videoKey: "" });
   }
 
   async function publish() {
@@ -263,6 +281,7 @@ function ReportCheckBody({ campaign, navigate, back, pageRef, signedIn, openDraw
       } catch { /* la vidéo reste optionnelle */ }
     }
     const publishedAt = new Date().toISOString();
+    const profile = readProfile();
     const local = {
       ...review,
       ...draftOf(campaign.id),
@@ -271,7 +290,9 @@ function ReportCheckBody({ campaign, navigate, back, pageRef, signedIn, openDraw
       screenshot: hostedPhotos[0]?.url || "",
       videoName: hostedVideoName,
       videoUrl: hostedVideo,
-      author: "Vous",
+      author: readPublicPseudo(user) || profile.name || "Vous",
+      photo: user?.imageUrl || profile.avatar || "",
+      authorId: user?.id || "",
       publishedAt,
       likes: 0,
     };
@@ -284,12 +305,11 @@ function ReportCheckBody({ campaign, navigate, back, pageRef, signedIn, openDraw
     }));
     if (getToken) {
       try {
-        const profile = readProfile();
         const saved = await publishReview(getToken, {
           campaignId: campaign.id,
           campaignName: campaign.name || "",
           author: readPublicPseudo(user) || profile.name || "Testeur",
-          photo: profile.avatar || "",
+          photo: user?.imageUrl || profile.avatar || "",
           title: "Mon retour d’expérience",
           text: review.text || report.bugText || "",
           body: review.text || report.bugText || "",
@@ -349,6 +369,7 @@ function ReportCheckBody({ campaign, navigate, back, pageRef, signedIn, openDraw
           <h1>Vérifier mon <span className="v2-accent">compte rendu</span></h1>
           <p className="v2-muted">Avant publication</p>
         </div>
+        <TestReserveReminder />
         <Card><ProjectIdentity campaign={campaign} /><Tags items={campaign.tags} /></Card>
         <Card>
           <SectionTitle icon="◎" title="Résumé du problème" action={<button type="button" className="v2-inline-link" onClick={() => navigate("report-form", { campaignId: campaign.id })}>✎ Modifier</button>} />
@@ -369,22 +390,40 @@ function ReportCheckBody({ campaign, navigate, back, pageRef, signedIn, openDraw
           {firstGap?.field ? gapField[firstGap.field] : null}
         </Card>
         <div className="v2-upload-grid v2-upload-grid--wide">
-          <div className="v2-upload">
+          <div className={`v2-upload${visiblePhoto ? " v2-upload--preview" : ""}`}>
             {visiblePhoto ? (
-              <button type="button" className="v2-phone-frame" aria-label="Voir la capture en grand" onClick={() => setPhotoIndex((index) => (index + 1) % Math.max(1, photos.length))}>
-                <img src={visiblePhoto.url} alt="" />
+              <button type="button" className="v2-phone-frame" aria-label={photos.length > 1 ? "Voir la capture suivante" : "Capture d’écran jointe"} onClick={() => setPhotoIndex((index) => (index + 1) % Math.max(1, photos.length))}>
+                <img src={visiblePhoto.url} alt={visiblePhoto.name || "Capture d’écran"} />
+                <span className="v2-upload-zoom" aria-hidden="true">⌕</span>
               </button>
             ) : <span>Capture</span>}
           </div>
-          <label className="v2-upload is-dashed">
-            <span aria-hidden="true">▶</span>
-            <strong>Ajouter une vidéo</strong>
-            <small>{videoBusy ? "Envoi…" : videoName || "Optionnel"}</small>
-            <input type="file" accept="video/*" onChange={addVideo} />
-          </label>
+          {hasVideo ? (
+            <div className="v2-upload v2-upload--preview">
+              {videoUrl ? (
+                <video src={videoUrl} muted playsInline preload="metadata" aria-label={videoName || "Vidéo jointe"} />
+              ) : (
+                <span aria-hidden="true">▶</span>
+              )}
+              <button type="button" className="v2-upload-remove" aria-label="Retirer la vidéo" onClick={clearVideo}>×</button>
+              <label className="v2-upload-replace">
+                <span>{videoBusy ? "Envoi…" : "Modifier"}</span>
+                <input type="file" accept="video/*" onChange={addVideo} disabled={videoBusy} />
+              </label>
+            </div>
+          ) : (
+            <label className="v2-upload is-dashed">
+              <span aria-hidden="true">▶</span>
+              <strong>Ajouter une vidéo</strong>
+              <small>Optionnel · MP4, MOV</small>
+              <input type="file" accept="video/*" onChange={addVideo} />
+            </label>
+          )}
         </div>
         <p className="v2-info">Un compte rendu complet aide l’entrepreneur même si vous ne revenez pas répondre plus tard.</p>
-        <Button type="button" disabled={!ready || videoBusy} onClick={publish}>Compléter et publier</Button>
+        <Button type="button" disabled={!ready || videoBusy} onClick={publish}>
+          {ready ? <>Publier mon avis <span aria-hidden="true">→</span></> : "Compléter et publier"}
+        </Button>
         <Button type="button" variant="outline" onClick={() => navigate("campaign", { campaignId: campaign.id })}>Enregistrer le brouillon</Button>
       </main>
     </PageShell>

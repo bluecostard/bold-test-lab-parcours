@@ -5,7 +5,7 @@ import { prefetchCampaignCatalog, useCampaignCatalog } from "./catalog.js";
 import { syncAccountFromServer } from "./accountSync.js";
 import { startNativePush } from "./pushNative.js";
 import { prefetchRanking } from "./rankingApi.js";
-import { setStorageScope } from "./state.js";
+import { readProfile, setLocalUser, setStorageScope } from "./state.js";
 import { SideDrawer } from "./chrome.jsx";
 import { Button, PageShell } from "./primitives.jsx";
 import { confirmAge, hasConfirmedAge } from "./age.js";
@@ -27,6 +27,7 @@ import {
 } from "./screens.jsx";
 import { ReportDetailScreen } from "./report-detail.jsx";
 import { SettingsScreen } from "./settings.jsx";
+import { CharterScreen } from "./charter.jsx";
 import {
   ConfirmationScreen,
   EntrepreneurFormScreen,
@@ -113,6 +114,13 @@ function ClerkStorageScope({ children }) {
       timer = setTimeout(deferNetwork, 250);
     }
     if (user?.id && getToken) {
+      const previous = readProfile().user || {};
+      setLocalUser({
+        ...previous,
+        id: user.id,
+        name: previous.name || user.fullName || user.firstName || "",
+        avatar: user.imageUrl || previous.avatar || "",
+      });
       syncAccountFromServer(getToken).catch(() => {});
       startNativePush(getToken).catch(() => {});
     }
@@ -166,7 +174,7 @@ export function AppV2() {
   const [ageOk, setAgeOk] = useState(hasConfirmedAge);
   const [place, setPlace] = useState(() => {
     const requested = new URLSearchParams(window.location.search).get("ecran");
-    if (requested === "profile" || requested === "confirmation" || requested === "offer" || requested === "payment" || requested === "besoin" || requested === "login" || requested === "entrepreneur") {
+    if (requested === "profile" || requested === "confirmation" || requested === "offer" || requested === "payment" || requested === "besoin" || requested === "login" || requested === "entrepreneur" || requested === "charter") {
       return { ...homePlace, screen: requested };
     }
     if (isClerkAuthHash()) return { ...homePlace, screen: "login" };
@@ -372,11 +380,23 @@ export function AppV2() {
       messages: {},
       ranking: {},
       login: {},
-      "review-published": { campaignId: "bed-hop", reportId: new URLSearchParams(window.location.search).get("avis") || null },
+      "tester-profile": {
+        authorId: new URLSearchParams(window.location.search).get("auteur") || null,
+        authorName: new URLSearchParams(window.location.search).get("nom") || null,
+        projectId: new URLSearchParams(window.location.search).get("projet") || null,
+      },
+      charter: {
+        campaignId: new URLSearchParams(window.location.search).get("campagne") || null,
+        from: new URLSearchParams(window.location.search).get("from") || null,
+      },
+      "review-published": {
+        campaignId: new URLSearchParams(window.location.search).get("campagne") || "bed-hop",
+        reportId: new URLSearchParams(window.location.search).get("avis") || null,
+      },
       discover: {},
       explore: {},
       community: {},
-      campaign: { campaignId: "bed-hop" },
+      campaign: { campaignId: new URLSearchParams(window.location.search).get("campagne") || "bed-hop" },
     };
     if (!requested) return;
     if (deepLinks[requested]) navigate(requested, deepLinks[requested], true);
@@ -619,6 +639,9 @@ export function AppV2() {
     if (place.screen === "report-form") return campaign ? <ReportFormScreen {...props} campaign={campaign} /> : <DiscoverScreen {...props} />;
     if (place.screen === "report-check") return campaign ? <ReportCheckScreen {...props} campaign={campaign} /> : <DiscoverScreen {...props} />;
     if (place.screen === "login") return <LoginScreen {...props} from={place.from} campaignId={place.campaignId} />;
+    if (place.screen === "charter") {
+      return <CharterScreen {...props} campaignId={place.campaignId} from={place.from} />;
+    }
     if (place.screen === "review-published") {
       const reviewCampaign = campaign || (testerProject
         ? {

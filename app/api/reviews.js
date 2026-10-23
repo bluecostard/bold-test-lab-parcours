@@ -1,5 +1,6 @@
 import { readClerkUser } from "../lib/clerkAuth.js";
 import { readCampaign } from "../lib/campaignStore.js";
+import { hasValidCharter } from "../lib/charterStore.js";
 import { findDemoReview } from "../lib/demoTesterReviews.js";
 import { hostedMediaUrl, publicPhotos } from "../lib/mediaUrl.js";
 import { listReviews, readReview, saveReview } from "../lib/reviewStore.js";
@@ -73,6 +74,12 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Méthode refusée." });
   const user = await readClerkUser(req);
   if (!user) return res.status(401).json({ error: "Connectez-vous pour publier." });
+  if (!(await hasValidCharter(user.id))) {
+    return res.status(403).json({
+      error: "Signez la charte des testeurs pour publier un avis.",
+      code: "charter_required",
+    });
+  }
   const body = req.body || {};
   const campaignId = clean(body.campaignId, 80);
   const campaign = await liveCampaignForPublish(campaignId);
