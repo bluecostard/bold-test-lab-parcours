@@ -3,7 +3,8 @@
   "appName": "Gemelo",
   "webDir": "dist",
   "server": {
-    "url": "https://gemelo.online/?app=1",
+    "androidScheme": "https",
+    "hostname": "gemelo.online",
     "cleartext": false,
     "allowNavigation": [
       "gemelo.online",

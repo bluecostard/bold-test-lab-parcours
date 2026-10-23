@@ -49,6 +49,8 @@ jobs:
         working-directory: app
         run: |
           npm ci
+          # Play : pas de server.url (sinon refus « Device and Network Abuse » — JS distant).
+          node -e "const c=require('./capacitor.config.json'); if(c.server&&c.server.url){console.error('Refuse: server.url présent — emballer dist dans l’AAB.'); process.exit(1)}"
           npm run build
           npx cap sync android
 
@@ -66,7 +68,9 @@ jobs:
         run: |
           VERSION_CODE="${{ inputs.version_code }}"
           if [ -z "$VERSION_CODE" ]; then
-            VERSION_CODE="${{ github.run_number }}"
+            # versionCode 4 refusé Play ; run_number peut être < 5 sur un fork → plancher 5.
+            RUN="${{ github.run_number }}"
+            VERSION_CODE=$(( RUN > 5 ? RUN : 5 ))
           fi
           chmod +x gradlew
           ./gradlew bundleRelease assembleRelease \
