@@ -1,4 +1,3 @@
-import { upload } from "@vercel/blob/client";
 import { hostedMediaUrl, publicMediaUrl } from "../../lib/mediaUrl.js";
 
 const imageMax = 10 * 1024 * 1024;
@@ -225,6 +224,8 @@ async function uploadMediaViaServer(getToken, file, kind) {
 async function uploadMediaViaBlobClient(getToken, file, type) {
   const token = getToken ? await getToken() : "";
   if (!token) throw new Error("Connectez-vous pour envoyer un fichier.");
+  // @vercel/blob/client ~100 Ko : chargé seulement pour l’upload vidéo, pas au boot.
+  const { upload } = await import("@vercel/blob/client");
   const safe = String(file.name || type).replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 80) || type;
   const blob = await upload(`media/${type}/${safe}`, file, {
     access: "private",

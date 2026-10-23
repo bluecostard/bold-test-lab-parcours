@@ -31,13 +31,31 @@ export function prefetchCampaignCatalog(force = false) {
 }
 
 export function useCampaignCatalog() {
+  // Seed immédiat : le 1er paint n’attend pas /api/campaigns.
   const [list, setList] = useState(() => cache.list || seedCampaigns);
   useEffect(() => {
     let cancelled = false;
-    prefetchCampaignCatalog()
-      .then((next) => { if (!cancelled) setList(next); })
-      .catch(() => { if (!cancelled) setList(seedCampaigns); });
-    return () => { cancelled = true; };
+    const apply = (next) => { if (!cancelled) setList(next); };
+    const run = () => {
+      prefetchCampaignCatalog()
+        .then(apply)
+        .catch(() => apply(seedCampaigns));
+    };
+    // Laisser le 1er frame utile peindre avant le fetch (idle ou court délai).
+    let idleId;
+    let timer;
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      idleId = window.requestIdleCallback(run, { timeout: 900 });
+    } else {
+      timer = setTimeout(run, 120);
+    }
+    return () => {
+      cancelled = true;
+      if (idleId != null && typeof window !== "undefined" && "cancelIdleCallback" in window) {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timer) clearTimeout(timer);
+    };
   }, []);
   return list;
 }

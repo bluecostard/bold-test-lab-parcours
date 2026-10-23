@@ -4,7 +4,7 @@ import { BackButton, Button, Card, Field, FlowHeader, PageShell, ProjectIdentity
 import { TestReserveReminder } from "./charter.jsx";
 import { forgetFile, hostPending, isHostedMedia, rememberFile, uploadMedia } from "./mediaApi.js";
 import { publishReview } from "./reviewsApi.js";
-import { readProfile, readPublicPseudo, readV2State, updateV2State } from "./state.js";
+import { readAvatar, readProfile, readPublicPseudo, readV2State, updateV2State } from "./state.js";
 
 const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const batteryOptions = ["Non", "Un peu", "Beaucoup", "Je ne sais pas"];
@@ -291,7 +291,7 @@ function ReportCheckBody({ campaign, navigate, back, pageRef, signedIn, openDraw
       videoName: hostedVideoName,
       videoUrl: hostedVideo,
       author: readPublicPseudo(user) || profile.name || "Vous",
-      photo: user?.imageUrl || profile.avatar || "",
+      photo: readAvatar(user) || profile.avatar || "",
       authorId: user?.id || "",
       publishedAt,
       likes: 0,
@@ -309,7 +309,7 @@ function ReportCheckBody({ campaign, navigate, back, pageRef, signedIn, openDraw
           campaignId: campaign.id,
           campaignName: campaign.name || "",
           author: readPublicPseudo(user) || profile.name || "Testeur",
-          photo: user?.imageUrl || profile.avatar || "",
+          photo: readAvatar(user) || profile.avatar || "",
           title: "Mon retour d’expérience",
           text: review.text || report.bugText || "",
           body: review.text || report.bugText || "",

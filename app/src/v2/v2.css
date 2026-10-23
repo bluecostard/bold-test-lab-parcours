@@ -493,6 +493,7 @@ button.v2-avis-frame {
 .v2-avatar-editor { width: 78px; flex: 0 0 78px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; color: var(--v2-accent); font-size: 16px; }
 .v2-avatar-editor > span:first-child, .v2-avatar-editor img { width: 72px; height: 72px; display: grid; place-items: center; border-radius: 50%; background: #d8e3f0; color: #29415b; object-fit: cover; font-size: 30px; font-weight: 900; }
 .v2-avatar-editor input { position: fixed; left: -9999px; }
+.v2-avatar-editor.is-busy { opacity: 0.7; pointer-events: none; }
 .v2-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 14px; }
 .v2-stats div { min-height: 126px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px; padding: 8px; border: 1px solid var(--v2-line); border-radius: 13px; text-align: center; }
 .v2-stats strong { font-size: 29px; }
@@ -747,6 +748,7 @@ button.v2-avis-frame {
   background: #07111c;
   color: var(--v2-text);
 }
+.v2-boot-splash picture { display: contents; }
 .v2-boot-splash-logo {
   display: block;
   width: min(220px, 58vw);

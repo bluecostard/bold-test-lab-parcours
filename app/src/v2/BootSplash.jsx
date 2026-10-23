@@ -35,7 +35,10 @@ export function BootSplash() {
 
   return (
     <div className="v2-boot-splash" role="status" aria-live="polite" aria-label="Chargement de Gemelo">
-      <img className="v2-boot-splash-logo" src="/logo-gemelo.png" alt="" width="220" height="41" fetchPriority="high" decoding="async" />
+      <picture>
+        <source srcSet="/logo-gemelo.webp" type="image/webp" />
+        <img className="v2-boot-splash-logo" src="/logo-gemelo.png" alt="" width="220" height="41" fetchPriority="high" decoding="async" />
+      </picture>
     </div>
   );
 }

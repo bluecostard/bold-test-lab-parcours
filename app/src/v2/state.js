@@ -123,6 +123,28 @@ export function readPublicPseudo(clerkUser) {
   return "";
 }
 
+/** Photo de profil durable : métadonnée Gemelo → Clerk → stockage local. */
+export function readAvatar(clerkUser) {
+  const meta = clerkUser?.unsafeMetadata?.gemeloAvatar;
+  if (typeof meta === "string" && /^https?:\/\//i.test(meta.trim())) return meta.trim();
+  if (typeof clerkUser?.imageUrl === "string" && clerkUser.imageUrl.trim()) return clerkUser.imageUrl.trim();
+  const local = readProfile().avatar;
+  if (typeof local === "string" && local.trim() && !local.startsWith("blob:")) return local.trim();
+  return "";
+}
+
+export async function saveAvatar(clerkUser, url) {
+  const avatar = String(url || "").trim();
+  if (!avatar || !/^https?:\/\//i.test(avatar)) throw new Error("URL de photo invalide.");
+  setLocalUser({ ...(readProfile().user || {}), id: clerkUser?.id || readProfile().user?.id, avatar });
+  if (clerkUser?.update) {
+    await clerkUser.update({
+      unsafeMetadata: { ...(clerkUser.unsafeMetadata || {}), gemeloAvatar: avatar },
+    });
+  }
+  return avatar;
+}
+
 export async function savePublicPseudo(clerkUser, value) {
   const name = String(value || "").trim().slice(0, 24);
   if (name.length < 2) throw new Error("Le pseudo doit faire au moins 2 caractères.");

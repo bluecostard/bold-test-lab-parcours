@@ -11,7 +11,7 @@ import { forgetFile, isHostedMedia, rememberFile, uploadMedia } from "./mediaApi
 import { flagReview, getReview, likeReview, listReviews } from "./reviewsApi.js";
 import { projectsInTop10, useRanking } from "./rankingApi.js";
 import { fetchTesterProfile } from "./testerApi.js";
-import { blockAuthor, hasPaidCampaign, isAuthorBlocked, readProfile, readPublicPseudo, readV2State, savePublicPseudo, setLocalUser, unblockAuthor, updateLocalProfile, updateV2State, visibleReviews } from "./state.js";
+import { blockAuthor, hasPaidCampaign, isAuthorBlocked, readAvatar, readProfile, readPublicPseudo, readV2State, saveAvatar, savePublicPseudo, setLocalUser, unblockAuthor, updateLocalProfile, updateV2State, visibleReviews } from "./state.js";
 import { ShellWithNav } from "./chrome.jsx";
 import {
   BackButton,
@@ -410,8 +410,7 @@ function DiscoverScreenBody({ navigate, pageRef, openDrawer, user }) {
   const profile = readProfile();
   function reviewAvatar(review) {
     if (review.photo) return review.photo;
-    if (user?.id && review.authorId === user.id && user.imageUrl) return user.imageUrl;
-    if (user?.id && review.authorId === user.id && profile.avatar) return profile.avatar;
+    if (user?.id && review.authorId === user.id) return readAvatar(user) || profile.avatar || "/icon-app.png";
     return "/icon-app.png";
   }
   return (
@@ -970,8 +969,8 @@ function PublishedReviewBody({ campaign, reportId, navigate, back, pageRef, open
   const profile = readProfile();
   const authorName = live?.author || readPublicPseudo(user) || profile.name || "Vous";
   const authorPhoto = live?.photo
-    || (live?.authorId && user?.id === live.authorId ? (user.imageUrl || profile.avatar) : "")
-    || (isOwn ? (user?.imageUrl || profile.avatar) : "")
+    || (live?.authorId && user?.id === live.authorId ? readAvatar(user) : "")
+    || (isOwn ? readAvatar(user) : "")
     || profile.avatar;
   const authorSince = "Testeur depuis aujourd’hui";
   const publishedDate = formatReviewDate(live?.publishedAt || own.publishedAt);
@@ -1233,8 +1232,8 @@ function PublishedReviewBody({ campaign, reportId, navigate, back, pageRef, open
           ) : null}
           {signedIn || user ? (
             <div className="v2-avis-login" aria-label="Répondre à cet avis">
-              {user?.imageUrl || profile.avatar ? (
-                <img className="v2-avis-login-avatar" src={user?.imageUrl || profile.avatar} alt="" />
+              {readAvatar(user) || profile.avatar ? (
+                <img className="v2-avis-login-avatar" src={readAvatar(user) || profile.avatar} alt="" />
               ) : (
                 <span className="v2-avis-fallback" aria-hidden="true">{(readPublicPseudo(user) || profile.name || "?").charAt(0)}</span>
               )}
@@ -1835,7 +1834,7 @@ function testerSinceLabel(createdAt) {
   return `Testeur depuis ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
-function ProfileBody({ navigate, pageRef, openDrawer, signedIn, name, avatar, since, onAvatar, onSavePseudo, getToken }) {
+function ProfileBody({ navigate, pageRef, openDrawer, signedIn, name, avatar, avatarBusy = false, avatarError = "", since, onAvatar, onSavePseudo, getToken }) {
   const [showReviews, setShowReviews] = useState(false);
   const [pseudo, setPseudo] = useState(name || "");
   const [pseudoError, setPseudoError] = useState("");
@@ -1855,11 +1854,12 @@ function ProfileBody({ navigate, pageRef, openDrawer, signedIn, name, avatar, si
     <ShellWithNav navigate={navigate} pageRef={pageRef} openDrawer={openDrawer}>
       <main className="v2-stack v2-profile">
         <section className="v2-profile-identity">
-          <label className="v2-avatar-editor">
+          <label className={`v2-avatar-editor${avatarBusy ? " is-busy" : ""}`}>
             {avatar ? <img src={avatar} alt={name || "Photo de profil"} /> : <span aria-hidden="true">{signedIn && name ? name.charAt(0) : ""}</span>}
-            <input type="file" accept="image/*" onChange={onAvatar} disabled={!signedIn} />
-            {signedIn ? <span>Modifier</span> : null}
+            <input type="file" accept="image/*" onChange={onAvatar} disabled={!signedIn || avatarBusy} />
+            {signedIn ? <span>{avatarBusy ? "Envoi…" : "Modifier"}</span> : null}
           </label>
+          {avatarError ? <p className="v2-helper" role="alert">{avatarError}</p> : null}
           <div>
             <p>Bonjour</p>
             {signedIn && name && !editingPseudo ? <h1>{name}</h1> : null}
@@ -1981,6 +1981,12 @@ function ProfileBody({ navigate, pageRef, openDrawer, signedIn, name, avatar, si
 function ClerkProfile(props) {
   const { user, isSignedIn, isLoaded } = useUser();
   const { getToken } = useAuth();
+  const [avatarUrl, setAvatarUrl] = useState(() => readAvatar(user));
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
+  useEffect(() => {
+    setAvatarUrl(readAvatar(user));
+  }, [user?.id, user?.imageUrl, user?.unsafeMetadata?.gemeloAvatar]);
   if (!isLoaded) {
     return (
       <ShellWithNav navigate={props.navigate} pageRef={props.pageRef} openDrawer={props.openDrawer}>
@@ -1992,14 +1998,40 @@ function ClerkProfile(props) {
   }
   async function avatarChange(event) {
     const file = event.target.files?.[0];
-    if (file && user?.setProfileImage) await user.setProfileImage({ file });
+    event.target.value = "";
+    if (!file || !user) return;
+    setAvatarBusy(true);
+    setAvatarError("");
+    const preview = URL.createObjectURL(file);
+    setAvatarUrl(preview);
+    try {
+      const uploaded = await uploadMedia(getToken, file, "image");
+      await saveAvatar(user, uploaded.url);
+      if (typeof user.setProfileImage === "function") {
+        try {
+          await user.setProfileImage({ file });
+          await user.reload?.();
+        } catch {
+          /* Clerk optionnel : l’URL Blob Gemelo suffit */
+        }
+      }
+      setAvatarUrl(uploaded.url);
+    } catch (error) {
+      setAvatarUrl(readAvatar(user));
+      setAvatarError(error?.message || "Envoi de la photo impossible.");
+    } finally {
+      URL.revokeObjectURL(preview);
+      setAvatarBusy(false);
+    }
   }
   return (
     <ProfileBody
       {...props}
       signedIn={Boolean(isSignedIn)}
       name={readPublicPseudo(user)}
-      avatar={user?.imageUrl || ""}
+      avatar={avatarUrl}
+      avatarBusy={avatarBusy}
+      avatarError={avatarError}
       since={testerSinceLabel(user?.createdAt)}
       onAvatar={avatarChange}
       onSavePseudo={(value) => savePublicPseudo(user, value)}

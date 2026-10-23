@@ -1,45 +1,48 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAuth, useUser } from "@clerk/react";
 import { browseProjects } from "./data.js";
 import { prefetchCampaignCatalog, useCampaignCatalog } from "./catalog.js";
 import { syncAccountFromServer } from "./accountSync.js";
 import { startNativePush } from "./pushNative.js";
 import { prefetchRanking } from "./rankingApi.js";
-import { readProfile, setLocalUser, setStorageScope } from "./state.js";
+import { readAvatar, readProfile, setLocalUser, setStorageScope } from "./state.js";
 import { SideDrawer } from "./chrome.jsx";
 import { Button, PageShell } from "./primitives.jsx";
 import { confirmAge, hasConfirmedAge } from "./age.js";
-import { ExploreScreen } from "./explore.jsx";
-import { MessagesScreen } from "./messages.jsx";
-import { ReportCheckScreen, ReportFormScreen } from "./questionnaire.jsx";
-import {
-  CampaignScreen,
-  CommunityScreen,
-  DiscoverScreen,
-  LoginScreen,
-  OptionalQuestionScreen,
-  ProfileScreen,
-  PublishedReviewScreen,
-  RankingScreen,
-  ReviewFormScreen,
-  TesterProjectScreen,
-  TesterPublicScreen,
-} from "./screens.jsx";
-import { ReportDetailScreen } from "./report-detail.jsx";
-import { SettingsScreen } from "./settings.jsx";
-import { CharterScreen } from "./charter.jsx";
-import {
-  ConfirmationScreen,
-  EntrepreneurFormScreen,
-  OfferScreen,
-  PaymentScreen,
-  ProjectEditScreen,
-  ReportScreen,
-  ResultsScreen,
-} from "./entrepreneur.jsx";
-import { SmokeScreen } from "./smoke.jsx";
-import { BootSplash, dismissBootSplash, hideNativeSplash } from "./BootSplash.jsx";
+import { BootSplash, dismissBootSplash } from "./BootSplash.jsx";
 import "./v2.css";
+
+/** Accueil + écrans liés : un seul chunk, préchargé pendant l’attente Clerk. */
+const screensMod = import("./screens.jsx");
+const DiscoverScreen = lazy(() => screensMod.then((m) => ({ default: m.DiscoverScreen })));
+const CampaignScreen = lazy(() => screensMod.then((m) => ({ default: m.CampaignScreen })));
+const CommunityScreen = lazy(() => screensMod.then((m) => ({ default: m.CommunityScreen })));
+const LoginScreen = lazy(() => screensMod.then((m) => ({ default: m.LoginScreen })));
+const OptionalQuestionScreen = lazy(() => screensMod.then((m) => ({ default: m.OptionalQuestionScreen })));
+const ProfileScreen = lazy(() => screensMod.then((m) => ({ default: m.ProfileScreen })));
+const PublishedReviewScreen = lazy(() => screensMod.then((m) => ({ default: m.PublishedReviewScreen })));
+const RankingScreen = lazy(() => screensMod.then((m) => ({ default: m.RankingScreen })));
+const ReviewFormScreen = lazy(() => screensMod.then((m) => ({ default: m.ReviewFormScreen })));
+const TesterProjectScreen = lazy(() => screensMod.then((m) => ({ default: m.TesterProjectScreen })));
+const TesterPublicScreen = lazy(() => screensMod.then((m) => ({ default: m.TesterPublicScreen })));
+
+const ExploreScreen = lazy(() => import("./explore.jsx").then((m) => ({ default: m.ExploreScreen })));
+const MessagesScreen = lazy(() => import("./messages.jsx").then((m) => ({ default: m.MessagesScreen })));
+const ReportCheckScreen = lazy(() => import("./questionnaire.jsx").then((m) => ({ default: m.ReportCheckScreen })));
+const ReportFormScreen = lazy(() => import("./questionnaire.jsx").then((m) => ({ default: m.ReportFormScreen })));
+const ReportDetailScreen = lazy(() => import("./report-detail.jsx").then((m) => ({ default: m.ReportDetailScreen })));
+const SettingsScreen = lazy(() => import("./settings.jsx").then((m) => ({ default: m.SettingsScreen })));
+const CharterScreen = lazy(() => import("./charter.jsx").then((m) => ({ default: m.CharterScreen })));
+const SmokeScreen = lazy(() => import("./smoke.jsx").then((m) => ({ default: m.SmokeScreen })));
+
+const entrepreneurMod = () => import("./entrepreneur.jsx");
+const ConfirmationScreen = lazy(() => entrepreneurMod().then((m) => ({ default: m.ConfirmationScreen })));
+const EntrepreneurFormScreen = lazy(() => entrepreneurMod().then((m) => ({ default: m.EntrepreneurFormScreen })));
+const OfferScreen = lazy(() => entrepreneurMod().then((m) => ({ default: m.OfferScreen })));
+const PaymentScreen = lazy(() => entrepreneurMod().then((m) => ({ default: m.PaymentScreen })));
+const ProjectEditScreen = lazy(() => entrepreneurMod().then((m) => ({ default: m.ProjectEditScreen })));
+const ReportScreen = lazy(() => entrepreneurMod().then((m) => ({ default: m.ReportScreen })));
+const ResultsScreen = lazy(() => entrepreneurMod().then((m) => ({ default: m.ResultsScreen })));
 
 const swipeIgnore = "input, textarea, .v2-screenshot-rail, .v2-project-rail, .v2-screenshot-viewer, .v2-pitch-viewer, .v2-drawer-root, .v2-drawer";
 const homePlace = { screen: "discover", campaignId: null, reportId: null, from: null, authorId: null, authorName: null, projectId: null };
@@ -95,34 +98,48 @@ function ClerkStorageScope({ children }) {
   const { isLoaded, user } = useUser();
   const { getToken } = useAuth();
   const [ready, setReady] = useState(false);
+  const [homeChunkReady, setHomeChunkReady] = useState(false);
   const scope = isLoaded ? (user?.id || "guest") : "pending";
+
+  useEffect(() => {
+    let cancelled = false;
+    screensMod.then(() => {
+      if (!cancelled) setHomeChunkReady(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (!isLoaded) return undefined;
     setStorageScope(scope);
-    // UI dès Clerk prêt ; réseau (catalogue / classement) en idle pour un 1er écran plus rapide.
+    // Clerk prêt ≠ attendre le réseau (catalogue / ranking / account).
     setReady(true);
-    const deferNetwork = () => {
-      prefetchCampaignCatalog();
-      prefetchRanking(user?.id ? getToken : null);
-    };
-    let idleId;
-    let timer;
-    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-      idleId = window.requestIdleCallback(deferNetwork, { timeout: 1800 });
-    } else {
-      timer = setTimeout(deferNetwork, 250);
-    }
-    if (user?.id && getToken) {
+
+    if (user?.id) {
       const previous = readProfile().user || {};
+      const avatar = readAvatar(user) || previous.avatar || "";
       setLocalUser({
         ...previous,
         id: user.id,
         name: previous.name || user.fullName || user.firstName || "",
-        avatar: user.imageUrl || previous.avatar || "",
+        avatar,
       });
-      syncAccountFromServer(getToken).catch(() => {});
-      startNativePush(getToken).catch(() => {});
+    }
+
+    const deferNetwork = () => {
+      prefetchCampaignCatalog();
+      prefetchRanking(user?.id ? getToken : null);
+      if (user?.id && getToken) {
+        syncAccountFromServer(getToken).catch(() => {});
+        startNativePush(getToken).catch(() => {});
+      }
+    };
+    let idleId;
+    let timer;
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      idleId = window.requestIdleCallback(deferNetwork, { timeout: 1200 });
+    } else {
+      timer = setTimeout(deferNetwork, 200);
     }
     return () => {
       if (idleId != null && typeof window !== "undefined" && "cancelIdleCallback" in window) {
@@ -132,12 +149,14 @@ function ClerkStorageScope({ children }) {
     };
   }, [getToken, isLoaded, scope, user?.id]);
 
-  useEffect(() => {
-    if (scope === "pending" || !ready) return;
-    dismissBootSplash();
-  }, [scope, ready]);
+  const bootDone = scope !== "pending" && ready && homeChunkReady;
 
-  if (scope === "pending" || !ready) {
+  useEffect(() => {
+    if (!bootDone) return;
+    dismissBootSplash();
+  }, [bootDone]);
+
+  if (!bootDone) {
     return <BootSplash />;
   }
   return <div key={scope} style={{ display: "contents" }}>{children}</div>;
@@ -705,10 +724,11 @@ export function AppV2() {
 
   const tree = ageGate || (
     <>
-      {screen}
+      {/* Accueil préfetché pendant Clerk ; null évite un flash splash sur les autres routes. */}
+      <Suspense fallback={null}>{screen}</Suspense>
       {place.screen === "besoin" ? null : <SideDrawer open={drawer} onClose={() => setDrawer(false)} navigate={navigate} />}
     </>
   );
-  /* Splash unique pendant Clerk/sync ; age gate seulement après, jamais pendant le load. */
+  /* Splash unique pendant Clerk ; age gate seulement après, jamais pendant le load. */
   return clerkKey ? <ClerkStorageScope>{tree}</ClerkStorageScope> : tree;
 }

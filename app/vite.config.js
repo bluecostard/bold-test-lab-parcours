@@ -48,6 +48,21 @@ function serveStaticHtml() {
 
 export default defineConfig({
   plugins: [react(), serveStaticHtml()],
+  build: {
+    target: "es2020",
+    cssCodeSplit: true,
+    modulePreload: { polyfill: true },
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("@clerk")) return "clerk";
+          if (id.includes("react-dom") || id.includes("/react/") || id.includes("\\react\\")) return "react";
+          return undefined;
+        },
+      },
+    },
+  },
   server: {
     host: "127.0.0.1",
     port: 5173,

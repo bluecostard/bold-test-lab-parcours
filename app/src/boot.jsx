@@ -1,9 +1,7 @@
-import { StrictMode } from "react";
+import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { ClerkProvider } from "@clerk/react";
-import { frFR } from "@clerk/localizations";
-import { App } from "./App.jsx";
-import { AppV2 } from "./v2/AppV2.jsx";
+import { frFR } from "@clerk/localizations/fr-FR";
 import "./styles.css";
 
 if (new URLSearchParams(window.location.search).get("ecran") === "besoin") {
@@ -12,7 +10,7 @@ if (new URLSearchParams(window.location.search).get("ecran") === "besoin") {
 
 const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const search = new URLSearchParams(window.location.search);
-const RootApp = search.get("v1") === "1" ? App : AppV2;
+const useV1 = search.get("v1") === "1";
 const isNativeApp = search.get("app") === "1";
 const loginPath = isNativeApp ? "/?app=1&ecran=login" : "/?ecran=login";
 const clerkOrigins = [...new Set([
@@ -22,6 +20,13 @@ const clerkOrigins = [...new Set([
   "https://accounts.gemelo.online",
   "https://clerk.gemelo.online",
 ])];
+
+/** App v1 rarement utilisée — hors du chemin critique v2. */
+const RootApp = lazy(() => (
+  useV1
+    ? import("./App.jsx").then((m) => ({ default: m.App }))
+    : import("./v2/AppV2.jsx").then((m) => ({ default: m.AppV2 }))
+));
 
 if ("serviceWorker" in navigator) {
   const register = () => navigator.serviceWorker.register("/sw.js").catch(() => {});
@@ -33,22 +38,25 @@ const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(
     <StrictMode>
-      {clerkKey ? (
-        <ClerkProvider
-          publishableKey={clerkKey}
-          localization={frFR}
-          signInUrl={loginPath}
-          signUpUrl={loginPath}
-          signInFallbackRedirectUrl={loginPath}
-          signUpFallbackRedirectUrl={loginPath}
-          afterSignOutUrl={loginPath}
-          allowedRedirectOrigins={clerkOrigins}
-        >
+      {/* fallback null : le splash HTML (#boot-splash) reste visible */}
+      <Suspense fallback={null}>
+        {clerkKey ? (
+          <ClerkProvider
+            publishableKey={clerkKey}
+            localization={frFR}
+            signInUrl={loginPath}
+            signUpUrl={loginPath}
+            signInFallbackRedirectUrl={loginPath}
+            signUpFallbackRedirectUrl={loginPath}
+            afterSignOutUrl={loginPath}
+            allowedRedirectOrigins={clerkOrigins}
+          >
+            <RootApp />
+          </ClerkProvider>
+        ) : (
           <RootApp />
-        </ClerkProvider>
-      ) : (
-        <RootApp />
-      )}
+        )}
+      </Suspense>
     </StrictMode>
   );
 }
