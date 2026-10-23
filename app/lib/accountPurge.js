@@ -2,6 +2,7 @@ import { del, list } from "@vercel/blob";
 import { listCampaigns, readCampaign } from "./campaignStore.js";
 import { readBooking } from "./bookingStore.js";
 import { charterBlobPath } from "./charterStore.js";
+import { profileBlobPath } from "./profileStore.js";
 import { listAllReviews, listReviews } from "./reviewStore.js";
 import { listQuestions } from "./questionStore.js";
 import { listConversationsFor } from "./messageStore.js";
@@ -160,6 +161,7 @@ export async function purgeUserAccount(userId) {
 
   pathnames.push(bookingPath(userId));
   pathnames.push(charterBlobPath(userId));
+  pathnames.push(profileBlobPath(userId));
 
   const mediaPrefix = `media/image/${String(userId).slice(0, 12)}-`;
   const mediaBlobs = await listAllUnder(mediaPrefix);

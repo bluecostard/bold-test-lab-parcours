@@ -123,25 +123,72 @@ export function readPublicPseudo(clerkUser) {
   return "";
 }
 
-/** Photo de profil durable : métadonnée Gemelo → Clerk → stockage local. */
+function isPersistableAvatar(url) {
+  const text = String(url || "").trim();
+  if (!text || text.startsWith("blob:") || text.startsWith("data:")) return false;
+  if (text.startsWith("/api/img?")) return true;
+  if (/^https?:\/\//i.test(text)) return true;
+  return false;
+}
+
+/** Photo de profil : local → métadonnée Gemelo → Clerk. */
 export function readAvatar(clerkUser) {
-  const meta = clerkUser?.unsafeMetadata?.gemeloAvatar;
-  if (typeof meta === "string" && /^https?:\/\//i.test(meta.trim())) return meta.trim();
-  if (typeof clerkUser?.imageUrl === "string" && clerkUser.imageUrl.trim()) return clerkUser.imageUrl.trim();
   const local = readProfile().avatar;
-  if (typeof local === "string" && local.trim() && !local.startsWith("blob:")) return local.trim();
+  if (isPersistableAvatar(local)) return local.trim();
+  const meta = clerkUser?.unsafeMetadata?.gemeloAvatar;
+  if (isPersistableAvatar(meta)) return String(meta).trim();
+  if (typeof clerkUser?.imageUrl === "string" && clerkUser.imageUrl.trim()) return clerkUser.imageUrl.trim();
   return "";
 }
 
-export async function saveAvatar(clerkUser, url) {
+export async function saveAvatar(clerkUser, url, getToken = null) {
   const avatar = String(url || "").trim();
-  if (!avatar || !/^https?:\/\//i.test(avatar)) throw new Error("URL de photo invalide.");
+  if (!isPersistableAvatar(avatar)) throw new Error("URL de photo invalide.");
   setLocalUser({ ...(readProfile().user || {}), id: clerkUser?.id || readProfile().user?.id, avatar });
-  if (clerkUser?.update) {
-    await clerkUser.update({
-      unsafeMetadata: { ...(clerkUser.unsafeMetadata || {}), gemeloAvatar: avatar },
-    });
+
+  // Source de vérité serveur (survit au wipe WebView / Clerk).
+  if (getToken) {
+    const token = await getToken();
+    if (token) {
+      const response = await fetch("/api/profile", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ avatar }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Enregistrement serveur de la photo impossible.");
+      }
+    }
   }
+
+  if (clerkUser?.update) {
+    try {
+      await clerkUser.update({
+        unsafeMetadata: { ...(clerkUser.unsafeMetadata || {}), gemeloAvatar: avatar },
+      });
+    } catch {
+      /* le serveur + local suffisent */
+    }
+  }
+  return avatar;
+}
+
+export async function hydrateAvatarFromServer(getToken) {
+  if (!getToken) return readProfile().avatar || "";
+  const token = await getToken();
+  if (!token) return readProfile().avatar || "";
+  const response = await fetch("/api/profile", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) return readProfile().avatar || "";
+  const data = await response.json().catch(() => ({}));
+  const avatar = typeof data.avatar === "string" ? data.avatar.trim() : "";
+  if (!isPersistableAvatar(avatar)) return readProfile().avatar || "";
+  setLocalUser({ ...(readProfile().user || {}), avatar });
   return avatar;
 }
 

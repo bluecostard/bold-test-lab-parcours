@@ -5,7 +5,7 @@ import { prefetchCampaignCatalog, useCampaignCatalog } from "./catalog.js";
 import { syncAccountFromServer } from "./accountSync.js";
 import { startNativePush } from "./pushNative.js";
 import { prefetchRanking } from "./rankingApi.js";
-import { readAvatar, readProfile, setLocalUser, setStorageScope } from "./state.js";
+import { hydrateAvatarFromServer, readAvatar, readProfile, setLocalUser, setStorageScope } from "./state.js";
 import { SideDrawer } from "./chrome.jsx";
 import { Button, PageShell } from "./primitives.jsx";
 import { confirmAge, hasConfirmedAge } from "./age.js";
@@ -130,6 +130,7 @@ function ClerkStorageScope({ children }) {
       prefetchCampaignCatalog();
       prefetchRanking(user?.id ? getToken : null);
       if (user?.id && getToken) {
+        hydrateAvatarFromServer(getToken).catch(() => {});
         syncAccountFromServer(getToken).catch(() => {});
         startNativePush(getToken).catch(() => {});
       }

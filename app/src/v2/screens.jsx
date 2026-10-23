@@ -11,7 +11,7 @@ import { forgetFile, isHostedMedia, rememberFile, uploadMedia } from "./mediaApi
 import { flagReview, getReview, likeReview, listReviews } from "./reviewsApi.js";
 import { projectsInTop10, useRanking } from "./rankingApi.js";
 import { fetchTesterProfile } from "./testerApi.js";
-import { blockAuthor, hasPaidCampaign, isAuthorBlocked, readAvatar, readProfile, readPublicPseudo, readV2State, saveAvatar, savePublicPseudo, setLocalUser, unblockAuthor, updateLocalProfile, updateV2State, visibleReviews } from "./state.js";
+import { blockAuthor, hasPaidCampaign, hydrateAvatarFromServer, isAuthorBlocked, readAvatar, readProfile, readPublicPseudo, readV2State, saveAvatar, savePublicPseudo, setLocalUser, unblockAuthor, updateLocalProfile, updateV2State, visibleReviews } from "./state.js";
 import { ShellWithNav } from "./chrome.jsx";
 import {
   BackButton,
@@ -1987,6 +1987,16 @@ function ClerkProfile(props) {
   useEffect(() => {
     setAvatarUrl(readAvatar(user));
   }, [user?.id, user?.imageUrl, user?.unsafeMetadata?.gemeloAvatar]);
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || !getToken) return undefined;
+    let cancelled = false;
+    hydrateAvatarFromServer(getToken)
+      .then((url) => {
+        if (!cancelled && url) setAvatarUrl(url);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [getToken, isLoaded, isSignedIn, user?.id]);
   if (!isLoaded) {
     return (
       <ShellWithNav navigate={props.navigate} pageRef={props.pageRef} openDrawer={props.openDrawer}>
@@ -2006,15 +2016,8 @@ function ClerkProfile(props) {
     setAvatarUrl(preview);
     try {
       const uploaded = await uploadMedia(getToken, file, "image");
-      await saveAvatar(user, uploaded.url);
-      if (typeof user.setProfileImage === "function") {
-        try {
-          await user.setProfileImage({ file });
-          await user.reload?.();
-        } catch {
-          /* Clerk optionnel : l’URL Blob Gemelo suffit */
-        }
-      }
+      if (!uploaded?.url) throw new Error("Envoi de la photo impossible.");
+      await saveAvatar(user, uploaded.url, getToken);
       setAvatarUrl(uploaded.url);
     } catch (error) {
       setAvatarUrl(readAvatar(user));
