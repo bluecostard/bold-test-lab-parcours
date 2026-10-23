@@ -38,7 +38,7 @@ const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(
     <StrictMode>
-      {/* fallback null : le splash HTML (#boot-splash) reste visible */}
+      {/* fallback null : #boot-splash est hors de #root et reste visible pendant le lazy load */}
       <Suspense fallback={null}>
         {clerkKey ? (
           <ClerkProvider

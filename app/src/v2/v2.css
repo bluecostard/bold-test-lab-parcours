@@ -736,23 +736,31 @@ button.v2-avis-frame {
 .v2-legal p { margin: 0; color: #d5dfeb; font-size: 16px; line-height: 1.55; }
 .v2-settings h1, .v2-legal h1 { margin-bottom: 8px; }
 .v2-contact-form { display: flex; flex-direction: column; gap: 14px; }
-/* Splash démarrage unique — logo centré, fond marque (pas de messages textuels) */
+/* Splash démarrage unique — logo au milieu exact, fond marque (pas de messages textuels) */
 .v2-boot-splash {
   position: fixed;
   inset: 0;
   z-index: 10000;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin: 0;
-  padding: max(20px, env(safe-area-inset-top)) 24px max(20px, env(safe-area-inset-bottom));
+  padding: 0;
+  box-sizing: border-box;
   background: #07111c;
   color: var(--v2-text);
 }
-.v2-boot-splash picture { display: contents; }
+/* picture reste l’item flex (pas display:contents — casse le centrage vertical) */
+.v2-boot-splash picture {
+  display: block;
+  margin: 0;
+  line-height: 0;
+}
 .v2-boot-splash-logo {
   display: block;
   width: min(220px, 58vw);
   height: auto;
+  margin: 0;
   object-fit: contain;
   animation: v2-boot-fade 1.4s ease-in-out infinite alternate;
 }

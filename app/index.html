@@ -60,17 +60,21 @@
     <style>
       html.is-app #desktop-site { display: none !important; }
       html:not(.is-app) #root { display: none !important; }
-      /* Splash HTML immédiat (avant React) — même look que le boot JS */
+      /* Splash HTML immédiat (avant React) — logo au milieu exact de l’écran */
       html.is-app, html.is-app body { background: #07111c; }
       #boot-splash {
         position: fixed; inset: 0; z-index: 10000;
-        display: grid; place-items: center;
-        margin: 0; padding: 24px; background: #07111c;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0; padding: 0; background: #07111c;
+        box-sizing: border-box;
       }
-      #boot-splash picture { display: contents; }
+      /* picture = item flex centré (éviter display:contents, casse le centrage) */
+      #boot-splash picture {
+        display: block; margin: 0; line-height: 0;
+      }
       #boot-splash img {
         display: block; width: min(220px, 58vw); height: auto;
-        object-fit: contain;
+        margin: 0; object-fit: contain;
         animation: boot-fade 1.4s ease-in-out infinite alternate;
       }
       @keyframes boot-fade { from { opacity: .78; } to { opacity: 1; } }
@@ -215,14 +219,14 @@
         <a href="#">Retour en haut ↑</a>
       </footer>
     </div>
-    <div id="root">
-      <div id="boot-splash" role="status" aria-live="polite" aria-label="Chargement de Gemelo">
-        <picture>
-          <source srcset="/logo-gemelo.webp" type="image/webp" />
-          <img src="/logo-gemelo.png" alt="" width="220" height="41" fetchpriority="high" decoding="async" />
-        </picture>
-      </div>
+    <!-- Hors de #root : survit au createRoot/Suspense pendant le lazy load AppV2 -->
+    <div id="boot-splash" role="status" aria-live="polite" aria-label="Chargement de Gemelo">
+      <picture>
+        <source srcset="/logo-gemelo.webp" type="image/webp" />
+        <img src="/logo-gemelo.png" alt="" width="220" height="41" fetchpriority="high" decoding="async" />
+      </picture>
     </div>
+    <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
