@@ -11,11 +11,12 @@ export function isOfficialDesktop() {
 }
 
 export function bindDesktopStoreButtons() {
+  // Only .unavailable (App Store). Google Play is a live link — no “bientôt” handler.
   document.querySelectorAll("#desktop-site .unavailable").forEach((button) => {
     button.addEventListener("click", () => {
       const status = document.getElementById("storeStatus");
       if (status) {
-        status.textContent = "Gemelo sera téléchargeable ici dès sa publication. Suivez @bluecostard pour connaître la date de lancement.";
+        status.textContent = "Gemelo est déjà sur Google Play. L’App Store ouvrira dès la validation Apple. Suivez @bluecostard pour la date iOS.";
       }
     });
   });
