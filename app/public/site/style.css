@@ -41,23 +41,11 @@ p { color: var(--muted); line-height: 1.7; font-size: 17px; }
 .orbit:after { content: ""; position: absolute; inset: 30px; border-radius: 50%; border: 1px solid #28475a; }
 .phone { width: 268px; height: 560px; background: #020b15; border: 7px solid #182f41; outline: 1px solid #557286; border-radius: 43px; padding: 12px; transform: rotate(8deg); box-shadow: 15px 35px 55px #0006; position: relative; z-index: 1; }
 .island { width: 84px; height: 20px; background: #020b15; border-radius: 22px; position: absolute; top: 15px; left: 50%; transform: translateX(-50%); z-index: 2; }
-.screen { height: 100%; border-radius: 27px; overflow: hidden; background: #0d263c; padding: 27px 12px 12px; }
-.phonelogo { width: 99px; display: block; margin-bottom: 15px; }
-.campaignhead { background: var(--lime); color: #072033; display: flex; justify-content: space-between; padding: 10px; font-size: 10px; font-weight: 700; border-radius: 9px 9px 0 0; }
-.demoimage { background: #f3efe6; height: 152px; position: relative; overflow: hidden; }
-.demoimage img { width: 100%; height: 100%; object-fit: cover; object-position: left center; display: block; }
-.projectlabel { position: absolute; bottom: 9px; left: 10px; color: #1a1a1a; font-size: 9px; font-weight: bold; text-shadow: 0 1px 0 #fff8; }
-.screen h3 { font-size: 18px; margin: 13px 0 0; }
-.screen > p { font-size: 11px; margin: 5px 0 12px; }
-.mockbutton { display: block; padding: 11px; background: var(--lime); color: #071c2d; border-radius: 18px; text-align: center; font-size: 11px; font-weight: bold; }
-.mockreview { border: 1px solid #355064; border-radius: 12px; margin-top: 16px; padding: 12px 8px; display: flex; gap: 7px; font-size: 9px; }
-.avatar { display: grid; place-items: center; width: 23px; height: 23px; flex: none; border-radius: 50%; background: #d6e3ed; color: #123; }
-.mockreview p { font-size: 9px; margin: 4px 0 0; }
-.phonefooter { display: flex; justify-content: space-around; margin-top: 16px; color: #c4d2dc; font-size: 21px; }
-.phonefooter span { color: var(--lime); }
-.floating { position: absolute; z-index: 3; border: 1px solid #43592d; background: #152d2e; border-radius: 14px; padding: 15px 17px; font-size: 13px; box-shadow: 0 12px 30px #0003; white-space: nowrap; }
-.tagleft { top: 36px; left: 50%; transform: translateX(calc(-50% - 300px)) rotate(-6deg); }
-.tagright { bottom: 16px; left: 50%; right: auto; transform: translateX(calc(-50% + 255px)) rotate(-5deg); background: var(--lime); color: #081c2c; font-weight: bold; padding: 14px 15px; font-size: 12px; }
+.screen { height: 100%; border-radius: 27px; overflow: hidden; background: #071426; padding: 0; }
+.phonescreen-shot { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center top; border-radius: 27px; }
+.floating { position: absolute; z-index: 3; border: 1px solid #43592d; background: #152d2e; border-radius: 14px; padding: 15px 17px; font-size: 13px; line-height: 1.35; box-shadow: 0 12px 30px #0003; white-space: nowrap; }
+.tagleft { top: 18px; left: 0; right: auto; transform: rotate(-6deg); max-width: calc(50% - 96px); white-space: normal; }
+.tagright { bottom: 28px; left: auto; right: 0; transform: rotate(-5deg); background: var(--lime); color: #081c2c; font-weight: bold; padding: 14px 15px; font-size: 12px; max-width: calc(50% - 88px); white-space: normal; }
 .tagright span { font-size: 22px; margin-right: 8px; }
 .visualnote { position: absolute; bottom: -12px; color: #728ea4; font-size: 11px; }
 .strip { border-top: 1px solid #274151; border-bottom: 1px solid #274151; }
@@ -99,9 +87,9 @@ h2 { font-size: clamp(35px, 4vw, 49px); line-height: 1.1; letter-spacing: -.04em
 .footer img { width: 135px; }
 @media (max-width: 900px) {
   .hero { gap: 20px; min-height: 680px; }
-  .herovisual { padding-left: 64px; padding-right: 64px; }
-  .tagleft { top: 28px; left: 50%; font-size: 11px; transform: translateX(calc(-50% - 230px)) rotate(-6deg); }
-  .tagright { bottom: 12px; left: 50%; font-size: 11px; transform: translateX(calc(-50% + 240px)) rotate(-5deg); }
+  .herovisual { padding-left: 48px; padding-right: 48px; }
+  .tagleft { top: 12px; left: 0; font-size: 11px; max-width: calc(50% - 70px); transform: rotate(-6deg); }
+  .tagright { bottom: 18px; right: 0; left: auto; font-size: 11px; max-width: calc(50% - 64px); transform: rotate(-5deg); }
   .orbit { width: 350px; height: 350px; top: 120px; }
   .concept, .creators, .testerinner { gap: 45px; }
   .nav nav { gap: 18px; }
@@ -117,12 +105,10 @@ h2 { font-size: clamp(35px, 4vw, 49px); line-height: 1.1; letter-spacing: -.04em
   .hero { grid-template-columns: 1fr; padding: 42px 0 65px; gap: 25px; }
   .hero h1 { font-size: 62px; }
   .hero p { font-size: 16px; }
-  .herovisual { min-height: 555px; max-width: 400px; width: 100%; margin: auto; padding: 52px 8px 32px; }
+  .herovisual { min-height: 555px; max-width: 400px; width: 100%; margin: auto; padding: 56px 4px 36px; }
   .phone { width: 245px; height: 515px; }
-  .demoimage { height: 130px; }
-  .screen h3 { font-size: 16px; }
-  .tagleft { top: 6px; left: 50%; transform: translateX(calc(-50% - 160px)) rotate(-6deg); }
-  .tagright { bottom: 4px; left: 50%; transform: translateX(calc(-50% + 165px)) rotate(-5deg); }
+  .tagleft { top: 4px; left: 0; max-width: 132px; font-size: 11px; transform: rotate(-6deg); }
+  .tagright { bottom: 8px; right: 0; left: auto; max-width: 138px; font-size: 11px; transform: rotate(-5deg); }
   .visualnote { bottom: -10px; }
   .stripinner { flex-direction: column; gap: 18px; padding: 24px 0; font-size: 17px; }
   .section { padding: 68px 0; }
