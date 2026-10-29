@@ -16,14 +16,12 @@ import "./v2.css";
 const screensMod = import("./screens.jsx");
 const DiscoverScreen = lazy(() => screensMod.then((m) => ({ default: m.DiscoverScreen })));
 const CampaignScreen = lazy(() => screensMod.then((m) => ({ default: m.CampaignScreen })));
-const CommunityScreen = lazy(() => screensMod.then((m) => ({ default: m.CommunityScreen })));
 const LoginScreen = lazy(() => screensMod.then((m) => ({ default: m.LoginScreen })));
 const OptionalQuestionScreen = lazy(() => screensMod.then((m) => ({ default: m.OptionalQuestionScreen })));
 const ProfileScreen = lazy(() => screensMod.then((m) => ({ default: m.ProfileScreen })));
 const PublishedReviewScreen = lazy(() => screensMod.then((m) => ({ default: m.PublishedReviewScreen })));
 const RankingScreen = lazy(() => screensMod.then((m) => ({ default: m.RankingScreen })));
 const ReviewFormScreen = lazy(() => screensMod.then((m) => ({ default: m.ReviewFormScreen })));
-const TesterProjectScreen = lazy(() => screensMod.then((m) => ({ default: m.TesterProjectScreen })));
 const TesterPublicScreen = lazy(() => screensMod.then((m) => ({ default: m.TesterPublicScreen })));
 
 const ExploreScreen = lazy(() => import("./explore.jsx").then((m) => ({ default: m.ExploreScreen })));
@@ -40,7 +38,6 @@ const ConfirmationScreen = lazy(() => entrepreneurMod().then((m) => ({ default: 
 const EntrepreneurFormScreen = lazy(() => entrepreneurMod().then((m) => ({ default: m.EntrepreneurFormScreen })));
 const OfferScreen = lazy(() => entrepreneurMod().then((m) => ({ default: m.OfferScreen })));
 const PaymentScreen = lazy(() => entrepreneurMod().then((m) => ({ default: m.PaymentScreen })));
-const ProjectEditScreen = lazy(() => entrepreneurMod().then((m) => ({ default: m.ProjectEditScreen })));
 const ReportScreen = lazy(() => entrepreneurMod().then((m) => ({ default: m.ReportScreen })));
 const ResultsScreen = lazy(() => entrepreneurMod().then((m) => ({ default: m.ResultsScreen })));
 
@@ -653,7 +650,7 @@ export function AppV2() {
   const testerProject = browseProjects.find((item) => item.id === place.campaignId);
   const props = { navigate, back, pageRef, interceptBack, openDrawer: () => setDrawer(true) };
   const screen = (() => {
-    if (place.screen === "browse") return testerProject ? <TesterProjectScreen {...props} project={testerProject} /> : <DiscoverScreen {...props} />;
+    if (place.screen === "browse") return <DiscoverScreen {...props} />;
     if (place.screen === "campaign") return campaign ? <CampaignScreen {...props} campaign={campaign} /> : <DiscoverScreen {...props} />;
     if (place.screen === "review") return campaign ? <ReviewFormScreen {...props} campaign={campaign} /> : <DiscoverScreen {...props} />;
     if (place.screen === "report-form") return campaign ? <ReportFormScreen {...props} campaign={campaign} /> : <DiscoverScreen {...props} />;
@@ -687,7 +684,7 @@ export function AppV2() {
         : <DiscoverScreen {...props} />;
     }
     if (place.screen === "optional-question") return campaign ? <OptionalQuestionScreen {...props} campaign={campaign} reportId={place.reportId} /> : <DiscoverScreen {...props} />;
-    if (place.screen === "community") return <CommunityScreen {...props} />;
+    if (place.screen === "community") return <DiscoverScreen {...props} />;
     if (place.screen === "explore") return <ExploreScreen {...props} />;
     if (place.screen === "messages") return <MessagesScreen {...props} />;
     if (place.screen === "ranking") return <RankingScreen {...props} />;
@@ -703,7 +700,7 @@ export function AppV2() {
     }
     if (place.screen === "profile") return <ProfileScreen {...props} />;
     if (place.screen === "settings") return <SettingsScreen {...props} />;
-    if (place.screen === "project-edit") return <ProjectEditScreen {...props} />;
+    if (place.screen === "project-edit") return <OfferScreen {...props} />;
     if (place.screen === "entrepreneur") return <EntrepreneurFormScreen {...props} />;
     if (place.screen === "offer") return <OfferScreen {...props} />;
     if (place.screen === "payment") return <PaymentScreen {...props} />;

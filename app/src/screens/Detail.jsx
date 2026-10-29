@@ -38,7 +38,7 @@ export function Detail({ name, onOpen }) {
 
   return (
     <div className="campaign">
-      <button type="button" className="campaign-back" onClick={() => onOpen(9)}>‹ Retour</button>
+      <button type="button" className="campaign-back" onClick={() => onOpen(1)}>‹ Retour</button>
       <h1>{service.name}</h1>
       <p className="campaign-banner">{service.pitch}</p>
       <ul className="home-tags">

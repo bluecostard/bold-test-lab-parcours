@@ -62,7 +62,8 @@ function buildProductLinks(account) {
   const playStore = (account.projectPlayStore || "").trim();
   const links = [];
   if (appStore) links.push({ label: "App Store", detail: "Ouvrir sur l’App Store", href: appStore, icon: "●" });
-  if (playStore) links.push({ label: "Google Play", detail: "Ouvrir sur Google Play", href: playStore, icon: "▶" });
+  // Sur iOS natif, pas de lien Google Play visible (guideline App Store).
+  if (playStore && !isNativeIos()) links.push({ label: "Google Play", detail: "Ouvrir sur Google Play", href: playStore, icon: "▶" });
   if (website) {
     links.push({
       label: "Visiter le site",
@@ -696,9 +697,11 @@ function EntrepreneurFormBody({ navigate, back, pageRef, getToken, mode = "campa
           <Field label="App Store" error={errors.appStore}>
             <input type="url" placeholder="https://apps.apple.com/…" value={appStore} onChange={(event) => setAppStore(event.target.value)} />
           </Field>
-          <Field label="Google Play" error={errors.playStore}>
-            <input type="url" placeholder="https://play.google.com/…" value={playStore} onChange={(event) => setPlayStore(event.target.value)} />
-          </Field>
+          {isNativeIos() ? null : (
+            <Field label="Google Play" error={errors.playStore}>
+              <input type="url" placeholder="https://play.google.com/…" value={playStore} onChange={(event) => setPlayStore(event.target.value)} />
+            </Field>
+          )}
         </Card>
         <Card><SectionTitle title="Visuels" description="Logo entier et jusqu’à 6 captures. JPG, PNG, WebP ou photo iPhone." /><div className="v2-logo-editor">{logo ? <img src={logo} alt="Aperçu du logo" /> : <span className="v2-logo-placeholder">Logo</span>}<div><Button type="button" variant="outline" onClick={() => logoInput.current?.click()}>{logo ? "Remplacer" : "Ajouter un logo"}</Button>{logo ? <button type="button" className="v2-text-button" onClick={() => setLogo("")}>Supprimer</button> : null}</div></div><input ref={logoInput} className="v2-hidden-input" type="file" accept="image/*,.heic,.heif" onChange={chooseLogo} /><div className="v2-capture-list">{screens.map((src, index) => <figure key={`${src.slice(-24)}-${index}`}><img src={src} alt={`Capture ${index + 1}`} /><button type="button" onClick={() => setScreens((current) => current.filter((_, position) => position !== index))} aria-label={`Supprimer la capture ${index + 1}`}>×</button></figure>)}</div><Button type="button" variant="outline" disabled={screens.length >= 6} onClick={() => screenInput.current?.click()}>Ajouter des captures ({screens.length}/6)</Button><input ref={screenInput} className="v2-hidden-input" type="file" accept="image/*,.heic,.heif" multiple onChange={chooseScreens} />{imageError ? <p className="v2-error" role="alert">{imageError}</p> : null}{errors.logo ? <p className="v2-error" role="alert">{errors.logo}</p> : null}{errors.screens ? <p className="v2-error" role="alert">{errors.screens}</p> : null}</Card>
         {community ? null : (

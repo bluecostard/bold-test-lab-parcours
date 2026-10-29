@@ -16,7 +16,6 @@ export const campaigns = [
     website: "https://bedhop.online",
     productLinks: [
       { label: "App Store", detail: "Ouvrir sur l’App Store", href: "https://apps.apple.com/fr/app/bed-hop/id6807971956", icon: "●" },
-      { label: "Google Play", detail: "Ouvrir sur Google Play", href: "https://play.google.com/store/apps/details?id=online.bedhop.app", icon: "▶" },
       { label: "Visiter le site", detail: "Découvrir Bed Hop sur le web", href: "https://bedhop.online", icon: "◎" },
     ],
     socials: [
@@ -271,7 +270,6 @@ export const demoReviews = [
 
 export const bottomNavigation = [
   { id: "discover", label: "Découvrir", icon: "compass" },
-  { id: "community", label: "Communauté", icon: "people" },
   { id: "explore", label: "Explorer", icon: "explore" },
   { id: "ranking", label: "Classement", icon: "ranking" },
 ];

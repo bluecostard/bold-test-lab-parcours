@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useCampaignCatalog } from "./catalog.js";
 import { exploreWeb } from "./data.js";
 import { ShellWithNav } from "./chrome.jsx";
+import { isNativeIos } from "./nativePay.js";
 
 const CATEGORIES = ["Tous", "Application", "Site", "Campagne"];
 
@@ -46,6 +47,7 @@ export function ExploreScreen({ navigate, pageRef, openDrawer }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("Tous");
   const [web] = useState(() => shuffle(exploreWeb).map((cell, index) => ({ ...cell, wide: index % 8 === 4 })));
+  // iOS App Store 3.2.2(i) : pas de galerie d’apps / projets tiers (ex. « Communauté »).
   const cells = [
     ...catalog.filter((item) => item.live !== false).map((campaign, index) => ({
       id: campaign.id,
@@ -57,7 +59,7 @@ export function ExploreScreen({ navigate, pageRef, openDrawer }) {
       tags: campaign.tags,
       wide: index === 0,
     })),
-    ...web,
+    ...(isNativeIos() ? [] : web),
   ];
   const visible = cells.filter((cell) => matchesQuery(cell, query) && matchesCategory(cell, category));
   function open(cell) {

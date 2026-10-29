@@ -3,13 +3,13 @@ import { SignIn, SignUp, useAuth, useSignIn, useUser } from "@clerk/react";
 import { slotAvailable } from "../../lib/availability.js";
 import { apply, campaignDeadlineLabel, campaignPeriodLabel, campaignRemainingMsFor, campaignResultStatus, campaignResultStatusLabel, campaignTimerParts, campaignTimerProgress, canManageBooking, demoOfferDays, formattedDate, isCampaignSlotActive, isIsoDate, localToday } from "./booking.js";
 import { useCampaignCatalog } from "./catalog.js";
-import { campaigns, formatOfferPrice, formatStoredOfferPrice, offers, ranking, testerComments, testerRail } from "./data.js";
+import { campaigns, formatOfferPrice, formatStoredOfferPrice, offers, ranking } from "./data.js";
 import { isNativeIos } from "./nativePay.js";
 import { readAccount, writeAccount } from "../screens/account.js";
 import { readQuestion, answerQuestion } from "./questionsApi.js";
 import { forgetFile, isHostedMedia, rememberFile, uploadMedia } from "./mediaApi.js";
 import { flagReview, getReview, likeReview, listReviews } from "./reviewsApi.js";
-import { projectsInTop10, useRanking } from "./rankingApi.js";
+import { useRanking } from "./rankingApi.js";
 import { fetchTesterProfile } from "./testerApi.js";
 import { blockAuthor, hasPaidCampaign, hydrateAvatarFromServer, isAuthorBlocked, normalizeAvatarUrl, readAvatar, readProfile, readPublicPseudo, readV2State, saveAvatar, savePublicPseudo, setLocalUser, unblockAuthor, updateLocalProfile, updateV2State, visibleReviews } from "./state.js";
 import { ShellWithNav } from "./chrome.jsx";
@@ -18,7 +18,6 @@ import {
   Button,
   CampaignInstructions,
   Card,
-  ExpandIcon,
   Field,
   FlowHeader,
   Header,
@@ -39,6 +38,17 @@ function scrollRailTo(rail, index) {
 function railIndex(rail) {
   if (!rail) return 0;
   return Math.round(rail.scrollLeft / Math.max(1, rail.clientWidth));
+}
+
+/** Sur iOS natif, pas de lien Google Play visible (guideline App Store). */
+function visibleProductLinks(links) {
+  if (!Array.isArray(links)) return [];
+  if (!isNativeIos()) return links;
+  return links.filter((link) => {
+    const label = String(link?.label || "").toLowerCase();
+    const href = String(link?.href || "").toLowerCase();
+    return !label.includes("google play") && !href.includes("play.google.com") && !href.includes("market://");
+  });
 }
 
 function useCampaignDeadline(campaign) {
@@ -65,68 +75,6 @@ function useCampaignTimer(campaign) {
     return () => window.clearInterval(id);
   }, [campaign?.id, campaign?.offerDate, campaign?.offerLabel, campaign?.offerRange]);
   return state;
-}
-
-function railDotIndex(rail, dots) {
-  if (!rail || dots <= 1) return 0;
-  const max = rail.scrollWidth - rail.clientWidth;
-  if (max <= 1) return 0;
-  return Math.min(dots - 1, Math.max(0, Math.round((rail.scrollLeft / max) * (dots - 1))));
-}
-
-function TesterAppsRail({ navigate }) {
-  const { ranking: rows } = useRanking(null);
-  const projects = projectsInTop10(rows);
-  const list = projects.length ? projects : testerRail;
-  const dots = Math.min(4, Math.max(1, list.length));
-  const railRef = useRef(null);
-  const [dot, setDot] = useState(0);
-
-  function sync() {
-    setDot(railDotIndex(railRef.current, dots));
-  }
-
-  useEffect(() => {
-    const rail = railRef.current;
-    if (!rail) return;
-    sync();
-    rail.addEventListener("scroll", sync, { passive: true });
-    return () => rail.removeEventListener("scroll", sync);
-  }, [dots, list.length]);
-
-  return (
-    <>
-      <div className="v2-project-rail-wrap">
-        <div ref={railRef} className="v2-project-rail" role="list" aria-label="Projets des testeurs du top 10">
-          {list.map((project) => (
-            <button
-              key={project.id}
-              type="button"
-              onClick={() => navigate("browse", { campaignId: project.id })}
-              aria-label={`Découvrir ${project.name}`}
-            >
-              <span className="v2-project-rail-logo">
-                <img
-                  src={project.logo || project.fallback}
-                  alt=""
-                  onError={(event) => {
-                    if (project.fallback && event.currentTarget.src !== project.fallback) event.currentTarget.src = project.fallback;
-                  }}
-                />
-              </span>
-              <strong>{project.name}</strong>
-              <span>{project.pitch}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="v2-project-rail-dots" aria-hidden="true">
-        {Array.from({ length: dots }, (_, index) => (
-          <i key={index} className={index === dot ? "is-on" : ""} />
-        ))}
-      </div>
-    </>
-  );
 }
 
 function ScreenshotRail({ name, screenshots, slide, onSlide, onOpen, railRef }) {
@@ -428,9 +376,8 @@ function DiscoverScreenBody({ navigate, pageRef, openDrawer, user }) {
             <div className="v2-campaign-strip"><span aria-hidden="true">📣</span><strong>Aucune campagne en cours</strong></div>
             <SectionTitle
               title="Prochaine fenêtre bientôt"
-              description="Aucune appli n’est à tester aujourd’hui. On découvre la communauté des testeurs. La prochaine campagne s’affichera ici."
+              description="Aucune appli n’est à tester aujourd’hui. La prochaine campagne s’affichera ici."
             />
-            <Button type="button" onClick={() => navigate("explore")}>Explorer <span aria-hidden="true">→</span></Button>
             <Button type="button" variant="outline" onClick={() => navigate("offer")}>Faire tester mon service</Button>
             <p className="v2-helper">Les avis se déposent uniquement sur une campagne entrepreneur.</p>
           </Card>
@@ -438,15 +385,6 @@ function DiscoverScreenBody({ navigate, pageRef, openDrawer, user }) {
         {scheduledApi.map((item) => (
           <ScheduledCampaignNotice key={item.id} campaign={item} />
         ))}
-        <Card>
-          <SectionTitle
-            icon="✳"
-            title="Les applis des testeurs"
-            description="Découvrez librement les projets des 10 meilleurs testeurs."
-            action={<button type="button" className="v2-icon-button" aria-label="Ouvrir en plein écran" onClick={() => navigate("community")}><ExpandIcon /></button>}
-          />
-          <TesterAppsRail navigate={navigate} />
-        </Card>
         {reviewSource && reviews.length ? (
           <Card>
             <SectionTitle
@@ -560,14 +498,14 @@ function CampaignScreenBody({ campaign, navigate, back, pageRef, interceptBack, 
             </button>
           </Card>
         ) : null}
-        {campaign.productLinks ? (
+        {visibleProductLinks(campaign.productLinks).length ? (
           <Card>
             <SectionTitle icon="↗" title="Accéder au produit" description={`Ouvrez ${campaign.name} sur la plateforme de votre choix.`} />
             {access.signed ? (
               <>
                 <TestReserveReminder />
                 <ul className="v2-link-list">
-                  {campaign.productLinks.map((link) => (
+                  {visibleProductLinks(campaign.productLinks).map((link) => (
                     <li key={link.label}>
                       <a href={link.href} target="_blank" rel="noreferrer">
                         <span className="v2-link-icon" aria-hidden="true">{link.icon}</span>
@@ -606,66 +544,6 @@ function CampaignScreenBody({ campaign, navigate, back, pageRef, interceptBack, 
           <Button type="button" variant="outline" onClick={shareCampaign}>Partager <span aria-hidden="true">→</span></Button>
           {shared ? <p role="status" className="v2-helper">Lien copié ou partagé.</p> : null}
         </Card>
-      </main>
-    </PageShell>
-  );
-}
-
-export function TesterProjectScreen({ project, back, pageRef, interceptBack, navigate, openDrawer }) {
-  const gallery = useScreenshotGallery(interceptBack);
-  const [state, setState] = useState(readV2State);
-  const liked = Boolean(state.projectLikes[project.id]);
-  function like() {
-    if (liked) return;
-    setState(updateV2State((current) => ({ ...current, projectLikes: { ...current.projectLikes, [project.id]: true } })));
-  }
-  if (gallery.viewer) {
-    return (
-      <PageShell pageRef={pageRef}>
-        <ScreenshotViewer name={project.name} screenshots={project.screenshots} slide={gallery.slide} onSlide={gallery.setSlide} onClose={gallery.close} navigate={navigate} openDrawer={openDrawer} />
-      </PageShell>
-    );
-  }
-  return (
-    <PageShell pageRef={pageRef}>
-      <FlowHeader navigate={navigate} openDrawer={openDrawer} />
-      <main className="v2-stack v2-detail">
-        <BackButton onClick={back} />
-        <div><h1>Découvrir <span>{project.name}</span></h1></div>
-        <section className="v2-detail-intro">
-          <div><ProjectIdentity campaign={project} /><Tags items={project.tags} /><p className="v2-description">{project.description}</p></div>
-          <div>
-            <ScreenshotRail name={project.name} screenshots={project.screenshots} slide={gallery.slide} onSlide={gallery.setSlide} onOpen={gallery.open} railRef={gallery.railRef} />
-          </div>
-        </section>
-        <Card>
-          <ul className="v2-link-list">
-            <li>
-              <a href={project.website} target="_blank" rel="noreferrer">
-                <span className="v2-link-icon" aria-hidden="true">◎</span>
-                <span><strong>Site internet</strong><small>{project.website.replace(/^https?:\/\//, "")}</small></span>
-                <span aria-hidden="true">↗</span>
-              </a>
-            </li>
-            <li>
-              {project.social?.href ? (
-                <a href={project.social.href} target="_blank" rel="noreferrer" aria-label={`${project.social.label} de ${project.name}`}>
-                  <span className="v2-link-icon" aria-hidden="true">◎</span>
-                  <span><strong>{project.social.label}</strong><small>Réseau social</small></span>
-                  <span aria-hidden="true">↗</span>
-                </a>
-              ) : (
-                <span className="is-disabled" aria-disabled="true">
-                  <span className="v2-link-icon" aria-hidden="true">◎</span>
-                  <span><strong>{project.social?.label || "Réseau social"}</strong><small>Lien non fourni</small></span>
-                </span>
-              )}
-            </li>
-          </ul>
-        </Card>
-        <button type="button" className="v2-like" aria-pressed={liked} disabled={liked} onClick={like}>
-          {liked ? "♥" : "♡"} {project.likes + (liked ? 1 : 0)}
-        </button>
       </main>
     </PageShell>
   );
@@ -1386,42 +1264,6 @@ function OptionalQuestionBody({ campaign, reportId, navigate, pageRef, openDrawe
   );
 }
 
-export function CommunityScreen({ navigate, back, pageRef, openDrawer }) {
-  const { ranking: rows } = useRanking(null);
-  const projects = projectsInTop10(rows);
-  const list = projects.length ? projects : testerRail.map((item, index) => ({ ...item, rank: index + 1 }));
-  return (
-    <ShellWithNav active="community" navigate={navigate} pageRef={pageRef} openDrawer={openDrawer} header={false}>
-      <main className="v2-stack">
-        <div className="v2-community-head">
-          <h1>Les applis <span className="v2-accent">des testeurs</span></h1>
-          <button type="button" className="v2-icon-button" aria-label="Fermer" onClick={back}>×</button>
-        </div>
-        <p className="v2-muted">Les 10 meilleurs contributeurs</p>
-        <p className="v2-info">Ces projets gagnent en visibilité grâce aux avis utiles de notre communauté, pas par l’achat d’espace publicitaire.</p>
-        <p className="v2-description">Leurs projets restent ici tant qu’ils figurent dans le top 10.</p>
-        <div className="v2-community-list">
-          {list.map((project) => {
-            const comment = testerComments.find((item) => item.projectId === project.id);
-            return (
-              <Card key={project.id} className="v2-community-card v2-community-card--row">
-                <span className="v2-rank-badge">{project.rank || ""}</span>
-                <img src={project.cover} alt={project.name} onError={(event) => { if (project.fallback && event.currentTarget.src !== project.fallback) event.currentTarget.src = project.fallback; }} />
-                <div>
-                  <ProjectIdentity campaign={project} size="compact" linked />
-                  {comment ? <q>{comment.text}</q> : null}
-                  <Tags items={project.tags} />
-                  <Button type="button" onClick={() => navigate("browse", { campaignId: project.id })}>Découvrir <span aria-hidden="true">→</span></Button>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      </main>
-    </ShellWithNav>
-  );
-}
-
 function RankingCrown() {
   return (
     <svg className="v2-crown" viewBox="0 0 24 24" aria-hidden="true">
@@ -1507,7 +1349,6 @@ function RankingBody({ navigate, pageRef, openDrawer, getToken }) {
           <progress value={points} max={Math.max(tenth, 1)}>{points} sur {tenth}</progress>
           <Button type="button" onClick={() => navigate("discover")}>Tester la campagne <span aria-hidden="true">→</span></Button>
         </Card>
-        <p className="v2-info">Les projets des membres du top 10 sont visibles dans la Communauté tant qu’ils y restent.</p>
       </main>
     </ShellWithNav>
   );
@@ -1521,8 +1362,7 @@ function TesterProfileShare({ tester, projectId, projectLabel }) {
     else if (tester.name) params.set("nom", tester.name);
     if (projectId) params.set("projet", projectId);
     const link = `${window.location.origin}/?${params.toString()}`;
-    const projectBit = projectLabel ? ` Découvre aussi mon projet : ${link}` : ` ${link}`;
-    const text = `Je contribue aux tests sur Gemelo.${projectBit}`;
+    const text = `Je contribue aux tests sur Gemelo. ${link}`;
     try {
       if (navigator.share) await navigator.share({ title: `${tester.name} sur Gemelo`, text, url: link });
       else if (navigator.clipboard) await navigator.clipboard.writeText(text);
@@ -1582,15 +1422,6 @@ export function TesterPublicScreen({ authorId, authorName, projectId, navigate, 
                   {tester.live === false ? " · Exemple" : null}
                 </p>
                 {tester.phrase ? <p className="v2-description">{tester.phrase}</p> : null}
-                {resolvedProjectId && projectLabel ? (
-                  <button
-                    type="button"
-                    className="v2-inline-link v2-tester-project-link"
-                    onClick={() => navigate("browse", { campaignId: resolvedProjectId })}
-                  >
-                    Projet · {projectLabel}
-                  </button>
-                ) : null}
                 <TesterProfileShare tester={tester} projectId={resolvedProjectId} projectLabel={projectLabel} />
               </div>
             </header>
@@ -1840,16 +1671,12 @@ function ProfileBody({ navigate, pageRef, openDrawer, signedIn, name, avatar, av
   const [pseudoError, setPseudoError] = useState("");
   const [pseudoBusy, setPseudoBusy] = useState(false);
   const [editingPseudo, setEditingPseudo] = useState(!name);
-  const profile = readProfile();
-  const hasProject = Boolean(profile.projectName?.trim());
-  const projectName = hasProject ? profile.projectName : "Aucun projet configuré";
   const reviews = Object.entries(readV2State().publishedReviews);
   const { me } = useRanking(getToken || null);
   const avis = me?.tested ?? reviews.length;
   const points = me?.points ?? reviews.reduce((sum, [, review]) => sum + (Number(review.likes) || 0), 0);
   const seedIndex = ranking.findIndex((row) => row.name === name);
   const rankLabel = me?.place ? `${me.place}e` : (seedIndex >= 0 ? `${seedIndex + 1}e` : "—");
-  const inTop = Boolean(me?.inTop10 || (seedIndex >= 0 && seedIndex < 10));
   return (
     <ShellWithNav navigate={navigate} pageRef={pageRef} openDrawer={openDrawer}>
       <main className="v2-stack v2-profile">
@@ -1932,36 +1759,12 @@ function ProfileBody({ navigate, pageRef, openDrawer, signedIn, name, avatar, av
             </ul>
           ) : null}
         </Card>
-        <Card>
-          <SectionTitle
-            icon="◇"
-            title="Mon projet"
-            action={hasProject ? <span className="v2-wait-chip">{inTop ? "Top 10" : "En attente du top 10"}</span> : null}
-          />
-          <div className="v2-profile-project">
-            {profile.projectLogo ? <img className="v2-profile-project-logo" src={profile.projectLogo} alt={`Logo ${projectName}`} /> : <span className="v2-logo-placeholder" aria-hidden="true">◇</span>}
-            <div>
-              <h2>{projectName}</h2>
-              <p>{profile.projectPitch || "Ajoutez votre projet pour le présenter à la communauté."}</p>
-            </div>
-          </div>
-          {hasProject ? (
-            <button type="button" className="v2-ghost-chip" onClick={() => navigate("project-edit")}>✎ Modifier mon projet</button>
-          ) : (
-            <Button type="button" onClick={() => navigate("project-edit")}>
-              Ajouter mon projet <span aria-hidden="true">→</span>
-            </Button>
-          )}
-          <p className="v2-helper v2-helper--left">
-            Visibilité Communauté (top 10) — gratuit, sans offre ni paiement. Pour une campagne testeurs, utilisez « Faire tester mon service » plus bas.
-          </p>
-        </Card>
         <BookingSlotCard getToken={getToken} />
         <button className="v2-service-entry" type="button" onClick={() => navigate("offer")}>
           <span aria-hidden="true">📣</span>
           <span>
             <strong>Faire tester mon service</strong>
-            <small>Campagne payante (offre + créneau) pour toucher des testeurs qualifiés, en complément de la visibilité Communauté ci-dessus.</small>
+            <small>Campagne payante (offre + créneau) pour toucher des testeurs qualifiés.</small>
           </span>
           <span aria-hidden="true">→</span>
         </button>

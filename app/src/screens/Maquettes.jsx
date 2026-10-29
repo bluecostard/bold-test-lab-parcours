@@ -19,10 +19,9 @@ const screens = [
     title: "Accueil",
     zones: [
       [43, 7, 8, 84, 2, "Tester cette appli"],
-      [91, 9, 0, 25, 1, "Découvrir"],
-      [91, 9, 25, 25, 9, "Testeurs"],
-      [91, 9, 50, 25, 10, "Classement"],
-      [91, 9, 75, 25, 11, "Profil"],
+      [91, 9, 0, 33, 1, "Découvrir"],
+      [91, 9, 33, 34, 10, "Classement"],
+      [91, 9, 67, 33, 11, "Profil"],
     ],
   },
   {
@@ -89,13 +88,9 @@ const screens = [
   },
   {
     file: "/ecrans/09.png",
-    title: "Applis des testeurs",
+    title: "Applis des testeurs (retirée)",
     zones: [
-      [0, 8, 72, 28, 1, "Fermer"],
-      [31.5, 6, 48, 48, "detail:Plantae", "Découvrir Plantae"],
-      [51, 6, 48, 48, "detail:MindFlow", "Découvrir MindFlow"],
-      [70.5, 6, 48, 48, "detail:GoodSpot", "Découvrir GoodSpot"],
-      [89.5, 6, 48, 48, "detail:Alba", "Découvrir Alba"],
+      [0, 8, 72, 28, 1, "Retour à l’accueil"],
     ],
   },
   {
@@ -103,22 +98,19 @@ const screens = [
     title: "Classement",
     zones: [
       [77.5, 6, 6, 88, 2, "Tester un projet"],
-      [91, 9, 0, 25, 1, "Découvrir"],
-      [91, 9, 25, 25, 9, "Communauté"],
-      [91, 9, 50, 25, 10, "Classement"],
-      [91, 9, 75, 25, 11, "Profil"],
+      [91, 9, 0, 33, 1, "Découvrir"],
+      [91, 9, 33, 34, 10, "Classement"],
+      [91, 9, 67, 33, 11, "Profil"],
     ],
   },
   {
     file: "/ecrans/11.png",
     title: "Profil",
     zones: [
-      [69, 7, 6, 88, "Les maquettes ne contiennent pas le formulaire du projet.", "Ajouter ou modifier mon projet"],
       [78.5, 8, 4, 92, "campagne", "Faire tester mon service"],
-      [91, 9, 0, 25, 1, "Découvrir"],
-      [91, 9, 25, 25, 9, "Communauté"],
-      [91, 9, 50, 25, 10, "Classement"],
-      [91, 9, 75, 25, 11, "Profil"],
+      [91, 9, 0, 33, 1, "Découvrir"],
+      [91, 9, 33, 34, 10, "Classement"],
+      [91, 9, 67, 33, 11, "Profil"],
     ],
   },
   {

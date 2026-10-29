@@ -41,7 +41,7 @@ function camilleReply(text, messages) {
     return pick([
       "Ton avis reste le tien. Une question de l’entrepreneur après coup, tu peux passer, ça ne touche ni le texte ni les points.",
       "Les likes font monter les points, sauf sur ton propre avis. Le classement c’est sur 30 jours.",
-      "Si tu es dans le top 10, ton projet reste visible en bas de l’accueil. Sinon il sort, c’est tout.",
+      "Le top 10, c’est uniquement le classement des points sur 30 jours. Continue à publier des avis utiles.",
     ], text);
   }
   if (/paye|payé|paiement|stripe|offre|19|39|euro|€/.test(text)) {

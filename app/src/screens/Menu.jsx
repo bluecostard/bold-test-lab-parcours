@@ -1,6 +1,5 @@
 const items = [
   { id: 1, label: "Découvrir", icon: "decouvrir" },
-  { id: 9, label: "Communauté", icon: "communaute" },
   { id: 10, label: "Classement", icon: "classement" },
   { id: 11, label: "Profil", icon: "profil" },
 ];

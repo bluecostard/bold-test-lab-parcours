@@ -51,7 +51,6 @@ export const products = [
     kind: "cette appli",
     links: [
       { label: "App Store", detail: "Ouvrir sur l’App Store", href: "https://apps.apple.com/fr/app/bed-hop/id6807971956" },
-      { label: "Google Play", detail: "Ouvrir sur Google Play", href: "https://play.google.com/store/apps/details?id=online.bedhop.app" },
       { label: "Visiter le site", detail: "Découvrir Bed Hop sur le web", href: "https://bedhop.online" },
     ],
     socials: [{ label: "Instagram", href: "https://www.instagram.com/bedhop26" }],
@@ -122,10 +121,9 @@ export const products = [
 
 export function Home({ onOpen }) {
   const [openName, setOpenName] = useState(null);
-  const [activeName, setActiveName] = useState(products[0].name);
   const [comments, setComments] = useState(readComments);
   const [drafts, setDrafts] = useState({});
-  const active = products.find((item) => item.name === activeName) ?? products[0];
+  const active = products[0];
 
   useEffect(() => {
     localStorage.setItem(COMMENT_KEY, JSON.stringify(comments));
@@ -184,27 +182,6 @@ export function Home({ onOpen }) {
           <img className="home-phone" src={`${active.screen}?v=7`} alt={`Écran de ${active.name}`} />
         </div>
         <button type="button" className="home-cta" onClick={() => onOpen(2, active.name)}>Tester cette appli →</button>
-      </section>
-
-      <section className="home-card">
-        <div className="home-card-head">
-          <h2>✳️ Les applis des testeurs</h2>
-          <button type="button" className="home-square" aria-label="Ouvrir les applis des testeurs" onClick={() => onOpen(9)}>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M9 4H5a1 1 0 0 0-1 1v4M15 4h4a1 1 0 0 1 1 1v4M9 20H5a1 1 0 0 1-1-1v-4M15 20h4a1 1 0 0 0 1-1v-4" />
-            </svg>
-          </button>
-        </div>
-        <p className="home-fine">Découvrez librement les projets des 10 meilleurs testeurs.</p>
-        <ul className="home-rail">
-          {products.map((app) => (
-            <li key={app.name}>
-              <button type="button" className={app.name === active.name ? "is-on" : ""} onClick={() => setActiveName(app.name)}>
-                <img src={`${app.photo}?v=6`} alt={`${app.name}, ${app.pitch}`} />
-              </button>
-            </li>
-          ))}
-        </ul>
       </section>
 
       <section className="home-card">
