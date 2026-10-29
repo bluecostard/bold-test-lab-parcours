@@ -22,6 +22,8 @@ const staticHtml = {
   "/regles/": "/regles/index.html",
   "/introuvable": "/introuvable/index.html",
   "/introuvable/": "/introuvable/index.html",
+  "/admin": "/admin/index.html",
+  "/admin/": "/admin/index.html",
 };
 
 function serveStaticHtml() {

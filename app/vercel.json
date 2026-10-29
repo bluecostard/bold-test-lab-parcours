@@ -9,7 +9,8 @@
     { "source": "/stores", "destination": "/stores/", "permanent": true },
     { "source": "/supprimer", "destination": "/supprimer/", "permanent": true },
     { "source": "/regles", "destination": "/regles/", "permanent": true },
-    { "source": "/introuvable", "destination": "/introuvable/", "permanent": true }
+    { "source": "/introuvable", "destination": "/introuvable/", "permanent": true },
+    { "source": "/admin", "destination": "/admin/", "permanent": false }
   ],
   "headers": [
     {
@@ -44,6 +45,7 @@
     { "source": "/supprimer/", "destination": "/supprimer/index.html" },
     { "source": "/regles/", "destination": "/regles/index.html" },
     { "source": "/introuvable/", "destination": "/introuvable/index.html" },
-    { "source": "/((?!api/|\\.well-known|besoin|confidentialite|cgu|cgv|legal|contact|mentions|stores|supprimer|regles|introuvable|charte-testeurs|cartes-whatsapp|sw\\.js|manifest\\.webmanifest|robots\\.txt|sitemap\\.xml|offline\\.html).*)", "destination": "/index.html" }
+    { "source": "/admin/", "destination": "/admin/index.html" },
+    { "source": "/((?!api/|admin/|\\.well-known|besoin|confidentialite|cgu|cgv|legal|contact|mentions|stores|supprimer|regles|introuvable|charte-testeurs|cartes-whatsapp|sw\\.js|manifest\\.webmanifest|robots\\.txt|sitemap\\.xml|offline\\.html).*)", "destination": "/index.html" }
   ]
 }
