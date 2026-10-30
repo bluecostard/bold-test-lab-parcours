@@ -5,18 +5,21 @@ Interface d’administration à `https://gemelo.online/admin/`.
 ## Accès
 
 1. Ouvrir `/admin/`.
-2. Saisir le jeton `GEMELO_ADMIN_TOKEN` (variable d’environnement Vercel, min. 16 caractères).
-3. Le jeton reste dans `sessionStorage` de l’onglet.
+2. Se connecter avec le **même compte Clerk** que l’app Gemelo.
+3. Seuls les e-mails autorisés (ou un rôle admin Clerk) accèdent aux données live.
 
-Mode maquette hors ligne : `/admin/?demo=1` (données seed + localStorage uniquement).
+Mode maquette hors ligne : `/admin/?demo=1`.
+
+## Autorisations serveur
+
+- E-mails admin : `GEMELO_ADMIN_EMAILS` (sinon défauts produit) + `ADMIN_NOTIFY_EMAIL`
+- IDs Clerk : `GEMELO_ADMIN_USER_IDS`
+- Metadata Clerk : `public_metadata.role = "admin"` ou `admin: true`
+- Secours scripts : `GEMELO_ADMIN_TOKEN` (Bearer)
+- Lookup e-mail : `CLERK_SECRET_KEY` (Backend API)
 
 ## API
 
-- `GET /api/admin` — snapshot live (campagnes, avis, paiements, classement).
-- `POST /api/admin` — actions : `hide-review`, `pause-campaign`, `resume-campaign`, `reject-campaign`.
-
-Auth : `Authorization: Bearer <GEMELO_ADMIN_TOKEN>`.
-
-## Données
-
-Les données live viennent de Vercel Blob (mêmes stores que l’app). Aucune seed de démo n’est écrite en production.
+- `GET /api/public-config` — clé publishable Clerk
+- `GET /api/admin` — snapshot live
+- `POST /api/admin` — `hide-review`, `pause-campaign`, `resume-campaign`, `reject-campaign`

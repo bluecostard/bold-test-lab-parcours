@@ -33,19 +33,44 @@ const seed={campaigns:[
 {id:'RET-424',user:'USR-009',project:'Tempo',type:'Parcours',text:'La création de mon premier rappel est simple. J’aimerais pouvoir modifier l’heure directement depuis la liste.',likes:16,status:'published',design:4,journey:4,battery:'Non évaluée',screen:'Liste des rappels',device:'iPhone 13 · iOS 18',flag:''}
 ],payments:[{id:'PAY-882',campaign:'CAM-1084',name:'BedHop',amount:149,status:'paid',date:'28 oct. 2026',ref:'pi_demo_bedhop'},{id:'PAY-883',campaign:'CAM-1085',name:'4ÀTable',amount:89,status:'paid',date:'28 oct. 2026',ref:'pi_demo_4atable'},{id:'PAY-884',campaign:'CAM-1086',name:'Moodly',amount:49,status:'paid',date:'28 oct. 2026',ref:'pi_demo_moodly'},{id:'PAY-885',campaign:'CAM-1087',name:'Trajet',amount:49,status:'failed',date:'28 oct. 2026',ref:'pi_demo_trajet'},{id:'PAY-881',campaign:'CAM-1088',name:'Atelier',amount:49,status:'paid',date:'27 oct. 2026',ref:'pi_demo_atelier'},{id:'PAY-880',campaign:'CAM-1083',name:'Tempo',amount:149,status:'paid',date:'27 oct. 2026',ref:'pi_demo_tempo'}],settings:{name:'Gemelo',email:'contact@example.test',charter:'1.0',notifications:true,moderation:true},log:[{title:'Campagne BedHop mise en ligne',detail:'28 oct. 2026 · 00:00 · Événement de démonstration'},{title:'Retour RET-421 signalé',detail:'28 oct. 2026 · 09:42 · Exemple de signalement'}]};
 const KEY='gemelo-admin-prototype-v1';
-const TOKEN_KEY='gemelo-admin-token';
 const demoQuery=new URLSearchParams(location.search).get('demo')==='1';
 let liveMode=!demoQuery;
 let data=structuredClone(seed);
 let route='overview',filter='all',search='',period='week',returnFocus=null;
+let clerk=null,clerkReady=null,enteringLive=false;
 const titles={overview:'Vue d’ensemble',campaigns:'Campagnes',users:'Utilisateurs',reviews:'Retours de test',payments:'Paiements',ranking:'Classement',privacy:'Confidentialité',settings:'Réglages'};
 const navIcons={overview:'home',campaigns:'campaign',users:'users',reviews:'message',payments:'wallet',ranking:'trophy',privacy:'shield',settings:'settings'};
+const clerkAppearance={variables:{colorPrimary:'#0b2133',colorBackground:'#ffffff',colorText:'#172c3c',colorInputBackground:'#ffffff',colorInputText:'#425c6d',colorNeutral:'#75818c',borderRadius:'7px',fontFamily:'DM Sans, sans-serif'},elements:{rootBox:{width:'100%'},card:{background:'transparent',boxShadow:'none',border:'0',width:'100%',margin:'0',padding:'0'},headerTitle:{fontFamily:'Manrope, sans-serif',fontSize:'16px',color:'#172c3c'},headerSubtitle:{color:'#75818c',fontSize:'12px'},formButtonPrimary:{background:'#0b2133',color:'#fff',fontSize:'11px',fontWeight:'650',minHeight:'36px',borderRadius:'7px',boxShadow:'none'},formFieldInput:{border:'1px solid #dce4e9',borderRadius:'6px',minHeight:'39px',fontSize:'14px'},formFieldLabel:{fontSize:'11px',fontWeight:'600',color:'#536978'},footerActionLink:{color:'#0b2133'},identityPreviewEditButton:{color:'#0b2133'}}};
 const $=id=>document.getElementById(id);
-function getToken(){try{return sessionStorage.getItem(TOKEN_KEY)||''}catch{return ''}}
-function setToken(v){try{if(v)sessionStorage.setItem(TOKEN_KEY,v);else sessionStorage.removeItem(TOKEN_KEY)}catch{}}
+function setLogoutVisible(on){const btn=$('logout-button');if(!btn)return;btn.hidden=!on}
+async function getSessionToken(){try{return (await clerk?.session?.getToken())||''}catch{return ''}}
+function loadScript(src,attrs={}){return new Promise((resolve,reject)=>{if([...document.scripts].some(s=>s.src===src)){resolve();return}const s=document.createElement('script');s.src=src;s.async=true;s.crossOrigin='anonymous';Object.entries(attrs).forEach(([k,v])=>s.setAttribute(k,v));s.onload=()=>resolve();s.onerror=()=>reject(new Error('Chargement impossible : '+src));document.head.appendChild(s)})}
+function clerkFrontendHost(pk){try{const part=String(pk||'').split('_').slice(2).join('_');const pad='='.repeat((4-part.length%4)%4);return atob(part+pad).replace(/\$$/,'')}catch{return ''}}
+async function fetchPublishableKey(){const res=await fetch('/api/public-config');const body=await res.json().catch(()=>({}));if(!res.ok)throw new Error(body.error||('Config indisponible ('+res.status+')'));const key=String(body.clerkPublishableKey||'').trim();if(!key)throw new Error('Clé Clerk absente de /api/public-config');return key}
+async function ensureClerk(){
+  if(clerk)return clerk;
+  if(clerkReady)return clerkReady;
+  clerkReady=(async()=>{
+    const pk=await fetchPublishableKey();
+    const host=clerkFrontendHost(pk);
+    if(!host)throw new Error('Clé Clerk invalide');
+    await loadScript(`https://${host}/npm/@clerk/ui@1/dist/ui.browser.js`);
+    await loadScript(`https://${host}/npm/@clerk/clerk-js@6/dist/clerk.browser.js`,{'data-clerk-publishable-key':pk});
+    if(typeof window.Clerk==='function')clerk=new window.Clerk(pk);
+    else if(window.Clerk&&typeof window.Clerk.load==='function')clerk=window.Clerk;
+    else throw new Error('Clerk CDN non disponible');
+    const uiCtor=window.__internal_ClerkUICtor;
+    await clerk.load(uiCtor?{ui:{ClerkUI:uiCtor}}:{});
+    clerk.addListener(({session})=>{
+      if(session&&!demoQuery)enterLive().catch(err=>showLogin(err.message||'Connexion refusée'));
+    });
+    return clerk;
+  })().catch(err=>{clerkReady=null;throw err});
+  return clerkReady;
+}
 async function api(path,opts={}){
   const headers=Object.assign({'Content-Type':'application/json'},opts.headers||{});
-  const token=getToken();
+  const token=await getSessionToken();
   if(token)headers.Authorization='Bearer '+token;
   const res=await fetch(path,Object.assign({},opts,{headers}));
   const body=await res.json().catch(()=>({}));
@@ -70,15 +95,56 @@ function updateChrome(){
   const foot=document.querySelector('.main-footer span:last-child');
   if(pill)pill.innerHTML=liveMode?'<span></span>Production · données live':'<span></span>Maquette · données d’exemple';
   if(foot)foot.textContent=liveMode?'Back-office connecté à gemelo.online':'Interface de démonstration — aucune opération réelle';
+  setLogoutVisible(liveMode&&!demoQuery&&!!clerk?.user);
 }
 function showLogin(error=''){
-  $('main').innerHTML=`<div class="page-head"><div><div class="eyebrow">ACCÈS RÉSERVÉ</div><h1>Back-office Gemelo</h1><p>Entrez le jeton administrateur pour charger les données live.</p></div></div>
-  <section class="panel" style="max-width:420px;margin:0 auto"><form id="login-form" class="settings-body">
+  const signedIn=!!clerk?.user;
+  setLogoutVisible(signedIn);
+  $('main').innerHTML=`<div class="page-head"><div><div class="eyebrow">ACCÈS RÉSERVÉ</div><h1>Back-office Gemelo</h1><p>Connectez-vous avec votre compte Gemelo pour accéder au back-office.</p></div></div>
+  <section class="panel login-panel"><div class="settings-body">
   ${error?`<div class="notice"><strong>${esc(error)}</strong></div>`:''}
-  <label class="field"><span>Jeton admin</span><input name="token" type="password" required minlength="16" autocomplete="current-password" placeholder="GEMELO_ADMIN_TOKEN"></label>
-  <p class="form-note">Le jeton reste dans cet onglet (sessionStorage). Ajoutez <code>?demo=1</code> pour la maquette hors ligne.</p>
-  <button class="btn primary" type="submit">Se connecter</button>
-  </form></section>`;
+  <div id="clerk-sign-in"></div>
+  <p class="form-note">Même compte que l’app Gemelo. Ajoutez <code>?demo=1</code> pour la maquette hors ligne.</p>
+  </div></section>`;
+  if(signedIn&&error){
+    const host=$('clerk-sign-in');
+    if(host){
+      host.innerHTML=`<button class="btn primary" type="button" id="retry-live">Réessayer</button>`;
+      $('retry-live')?.addEventListener('click',()=>enterLive().catch(err=>showLogin(err.message||'Connexion refusée')));
+    }
+    return;
+  }
+  mountClerkSignIn();
+}
+async function mountClerkSignIn(){
+  const host=$('clerk-sign-in');
+  if(!host)return;
+  try{
+    await ensureClerk();
+    if(clerk?.user){await enterLive();return}
+    if(typeof clerk.unmountSignIn==='function'){try{clerk.unmountSignIn(host)}catch{}}
+    clerk.mountSignIn(host,{routing:'virtual',appearance:clerkAppearance});
+  }catch(err){
+    if(clerk?.user){showLogin(err.message||'Connexion refusée');return}
+    host.innerHTML=`<div class="notice"><strong>${esc(err.message||'Connexion Clerk impossible')}</strong></div>`;
+  }
+}
+async function enterLive(){
+  if(demoQuery||enteringLive)return;
+  if(!clerk?.user)return;
+  enteringLive=true;
+  try{
+    await loadLive();
+    setLogoutVisible(true);
+    render();
+  }finally{
+    enteringLive=false;
+  }
+}
+async function signOutAdmin(){
+  try{if(clerk)await clerk.signOut({redirectUrl:location.pathname+location.search})}catch{}
+  setLogoutVisible(false);
+  showLogin();
 }
 const getUser=id=>{
   const found=data.users.find(x=>x.id===id);
@@ -155,31 +221,27 @@ document.addEventListener('change',e=>{if(e.target.id==='period'){period=e.targe
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();$('sidebar').classList.remove('open')}if(e.key==='Tab'&&$('modal-root').children.length){const focusable=[...$('modal-root').querySelectorAll('button,input,select,textarea,a[href]')].filter(x=>!x.disabled);const first=focusable[0],last=focusable.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}}});
 $('modal-root').addEventListener('click',e=>{if(e.target.classList.contains('modal-overlay'))closeModal()});
 $('notification-button').innerHTML=icon('bell')+'<span class="notification-dot"></span>';$('notification-button').dataset.action='queue';$('profile-button').dataset.action='nav';$('profile-button').dataset.id='settings';$('menu-button').addEventListener('click',()=>$('sidebar').classList.toggle('open'));
-window.addEventListener('hashchange',()=>{route=location.hash.slice(1)||'overview';filter='all';search='';render()});
+window.addEventListener('hashchange',()=>{if(!demoQuery&&!clerk?.user)return;route=location.hash.slice(1)||'overview';filter='all';search='';render()});
 route=location.hash.slice(1)||'overview';
-document.addEventListener('submit',e=>{
-  if(e.target.id!=='login-form')return;
-  e.preventDefault();
-  const token=String(new FormData(e.target).get('token')||'').trim();
-  if(token.length<16){toast('Jeton trop court.');return}
-  setToken(token);
-  loadLive().then(()=>render()).catch(err=>{setToken('');showLogin(err.message||'Connexion refusée');});
-});
+$('logout-button')?.addEventListener('click',()=>{signOutAdmin().catch(()=>showLogin())});
 async function boot(){
   updateChrome();
   if(demoQuery){
     liveMode=false;
     try{data=JSON.parse(localStorage.getItem(KEY))||structuredClone(seed)}catch{data=structuredClone(seed)}
     updateChrome();
+    setLogoutVisible(false);
     render();
     return;
   }
-  if(!getToken()){showLogin();return}
   try{
-    await loadLive();
-    render();
+    await ensureClerk();
+    if(clerk?.user){
+      await enterLive();
+      return;
+    }
+    showLogin();
   }catch(err){
-    setToken('');
     showLogin(err.message||'Connexion refusée');
   }
 }

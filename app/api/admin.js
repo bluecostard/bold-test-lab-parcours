@@ -178,7 +178,7 @@ async function snapshot() {
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
-  if (!requireAdmin(req, res)) return;
+  if (!(await requireAdmin(req, res))) return;
 
   try {
     if (req.method === "GET") {

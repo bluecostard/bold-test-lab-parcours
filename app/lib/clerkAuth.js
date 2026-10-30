@@ -23,7 +23,15 @@ export async function readClerkUser(req) {
     const { payload } = await jwtVerify(token, jwks);
     const id = typeof payload.sub === "string" ? payload.sub : "";
     if (!id) return null;
-    return { id };
+    const email =
+      typeof payload.email === "string"
+        ? payload.email
+        : typeof payload.primary_email_address === "string"
+          ? payload.primary_email_address
+          : "";
+    const metadata =
+      payload.metadata && typeof payload.metadata === "object" ? payload.metadata : payload.public_metadata || null;
+    return { id, email: String(email || "").trim().toLowerCase(), metadata };
   } catch {
     return null;
   }
